@@ -4,6 +4,10 @@ import { getSiteStats, getRankings } from "@/lib/queries";
 import Link from "next/link";
 import { formatSEK, formatOrgNumber } from "@/lib/format";
 
+// Force dynamic rendering — otherwise the page is statically prerendered at
+// build time using the stub database baked into the Docker image.
+export const dynamic = "force-dynamic";
+
 export default function HomePage() {
   const stats = getSiteStats();
   const topRevenue = getRankings("Nettoomsattning", "desc", 10, "2024-01-01");
