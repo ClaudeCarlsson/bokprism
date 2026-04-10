@@ -51,7 +51,6 @@ RUN addgroup --system --gid 1001 appgroup && \
 
 COPY --from=build --chown=appuser:appgroup /app/.next/standalone ./
 COPY --from=build --chown=appuser:appgroup /app/.next/static ./.next/static
-COPY --from=build --chown=appuser:appgroup /app/public ./public
 
 USER appuser
 VOLUME ["/app/data"]
