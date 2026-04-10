@@ -69,7 +69,7 @@ npm test
 
 ## Deploy
 
-See [infra/README.md](infra/README.md) for production deployment with Docker and Caddy.
+See [infra/README.md](infra/README.md) for production deployment with Docker behind a shared Caddy reverse proxy ([caddy-infra](https://github.com/ClaudeCarlsson/caddy-infra)).
 
 ```bash
 cd infra
