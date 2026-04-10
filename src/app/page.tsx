@@ -22,8 +22,8 @@ export default function HomePage() {
           Svensk Finansdata
         </h1>
         <p className="mt-4 max-w-xl text-lg text-zinc-600 dark:text-zinc-400">
-          Utforska bokslut, styrelser och kopplingar
-          f&ouml;r {stats.total_companies.toLocaleString("sv-SE")} svenska f&ouml;retag.
+          Utforska bokslut, styrelser och kopplingar f&ouml;r{" "}
+          {stats.total_companies.toLocaleString("sv-SE")} svenska f&ouml;retag.
           Gratis, snabbt och utan reklam.
         </p>
         <div className="mt-8 w-full max-w-2xl">
