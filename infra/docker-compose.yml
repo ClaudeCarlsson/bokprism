@@ -1,0 +1,44 @@
+services:
+  app:
+    build:
+      context: ..
+      target: production
+    restart: unless-stopped
+    networks:
+      - bokprism
+    expose:
+      - "3000"
+    volumes:
+      - ../data/bokprism.db:/app/data/bokprism.db:ro
+    environment:
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    networks:
+      - bokprism
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      app:
+        condition: service_healthy
+
+networks:
+  bokprism:
+    name: bokprism
+
+volumes:
+  caddy_data:
+  caddy_config:
