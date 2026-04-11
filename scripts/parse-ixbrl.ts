@@ -76,6 +76,28 @@ function parseNumber(
   return value;
 }
 
+// Sanity bounds — reject values beyond these, they're filer errors
+// (e.g., some filings have dates typed in employee fields, or percentages
+// with missing scale attributes, etc.)
+function isSane(metric: string, value: number, unit: string): boolean {
+  // Percent values should be in a reasonable ratio range
+  if (unit === "percent") {
+    return value >= -10 && value <= 10; // -1000% to 1000%
+  }
+  // Employee counts
+  if (unit === "count") {
+    if (metric.includes("Anstallda") || metric.includes("anstallda")) {
+      // Sweden's largest employer has ~100K. Cap at 200K to allow some slack.
+      return value >= 0 && value <= 200_000;
+    }
+    return Math.abs(value) <= 1e9;
+  }
+  // SEK monetary values: reject anything above 1 trillion SEK.
+  // Swedish GDP is ~6 trillion SEK, largest single company values are ~100-200B.
+  // Using 1T gives a 5-10x safety margin.
+  return Math.abs(value) <= 1e12;
+}
+
 // Text fields we want to capture
 const TEXT_FIELDS: Record<string, string> = {
   "AllmantVerksamheten": "verksamhet",
@@ -165,12 +187,17 @@ export function parseIxbrl(html: string): ParsedFiling | null {
     const value = parseNumber(text, scale, sign);
     if (value === null) return;
 
+    const unit = normalizeUnit(unitRef);
+
+    // Reject clearly impossible values (filer errors in the source XML)
+    if (!isSane(metric, value, unit)) return;
+
     const absScale = Math.abs(parseInt(scale || "0", 10));
     const existing = metricEntries.get(metric);
 
     // Prefer more precise (lower absolute scale) version
     if (!existing || absScale < existing.absScale) {
-      metricEntries.set(metric, { value, unit: normalizeUnit(unitRef), absScale });
+      metricEntries.set(metric, { value, unit, absScale });
     }
   });
 

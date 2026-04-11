@@ -189,6 +189,58 @@ describe("parseIxbrl", () => {
     expect(result!.currency).toBe("SEK");
   });
 
+  it("rejects impossible employee counts (filer errors)", () => {
+    const result = parseIxbrl(makeIxbrl({
+      financials: `
+        <ix:nonFraction name="se-gen-base:MedelantaletAnstallda" contextRef="period0"
+          unitRef="antal-anstallda" scale="0" decimals="INF" format="ixt:numspacecomma">20220301</ix:nonFraction>
+      `,
+    }));
+    // 20M employees is clearly a filer error (looks like a date)
+    expect(result!.financials.find(f => f.metric === "MedelantaletAnstallda")).toBeUndefined();
+  });
+
+  it("rejects negative employees", () => {
+    const result = parseIxbrl(makeIxbrl({
+      financials: `
+        <ix:nonFraction name="se-gen-base:MedelantaletAnstallda" contextRef="period0"
+          unitRef="antal-anstallda" scale="0" decimals="INF" format="ixt:numspacecomma" sign="-">50</ix:nonFraction>
+      `,
+    }));
+    expect(result!.financials.find(f => f.metric === "MedelantaletAnstallda")).toBeUndefined();
+  });
+
+  it("accepts reasonable employee counts", () => {
+    const result = parseIxbrl(makeIxbrl({
+      financials: `
+        <ix:nonFraction name="se-gen-base:MedelantaletAnstallda" contextRef="period0"
+          unitRef="antal-anstallda" scale="0" decimals="INF" format="ixt:numspacecomma">6620</ix:nonFraction>
+      `,
+    }));
+    expect(result!.financials.find(f => f.metric === "MedelantaletAnstallda")?.value).toBe(6620);
+  });
+
+  it("rejects impossibly large SEK values", () => {
+    const result = parseIxbrl(makeIxbrl({
+      financials: `
+        <ix:nonFraction name="se-gen-base:ForslagDispositionBalanserasINyRakning" contextRef="balans0"
+          unitRef="SEK" scale="0" decimals="0" format="ixt:numspacecomma">2652376242183258284</ix:nonFraction>
+      `,
+    }));
+    expect(result!.financials.find(f => f.metric === "ForslagDispositionBalanserasINyRakning")).toBeUndefined();
+  });
+
+  it("rejects Soliditet outside reasonable bounds", () => {
+    const result = parseIxbrl(makeIxbrl({
+      financials: `
+        <ix:nonFraction name="se-gen-base:Soliditet" contextRef="balans0"
+          unitRef="procent" scale="3" decimals="-3" format="ixt:numspacecomma">29520523</ix:nonFraction>
+      `,
+    }));
+    // 29.5 billion as a percent is clearly a filer error
+    expect(result!.financials.find(f => f.metric === "Soliditet")).toBeUndefined();
+  });
+
   it("handles empty financial text as dash", () => {
     const result = parseIxbrl(makeIxbrl({
       financials: `
