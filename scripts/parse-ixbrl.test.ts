@@ -122,6 +122,26 @@ describe("parseIxbrl", () => {
     expect(result!.financials.find(f => f.metric === "Nettoomsattning")?.value).toBe(101_763_063);
   });
 
+  it("uses majority vote when multiple inconsistent entries exist", () => {
+    // Real case from Hexagon Smart Solutions: three entries, one is a filer error.
+    // Two entries agree on 4.3B, one has a stray 4.3M. The majority value wins.
+    const result = parseIxbrl(makeIxbrl({
+      financials: `
+        <ix:nonFraction name="se-gen-base:AretsResultatEgetKapital" contextRef="balans0"
+          unitRef="SEK" scale="0" decimals="0" format="ixt:numspacecomma">4 333 792</ix:nonFraction>
+        <ix:nonFraction name="se-gen-base:AretsResultatEgetKapital" contextRef="balans0"
+          unitRef="SEK" scale="0" decimals="0" format="ixt:numspacecomma">4 333 792 405</ix:nonFraction>
+        <ix:nonFraction name="se-gen-base:AretsResultatEgetKapital" contextRef="balans0"
+          unitRef="SEK" scale="3" decimals="0" format="ixt:numspacecomma">4 333 792</ix:nonFraction>
+      `,
+    }));
+    const v = result!.financials.find(f => f.metric === "AretsResultatEgetKapital")?.value;
+    // Two entries produce ~4.333B (the 4.333B scale=0 and 4.333B from scale=3)
+    // One entry is the filer error at 4.333M
+    // The majority (4.3B range) should win
+    expect(v).toBeGreaterThan(1e9);
+  });
+
   it("only extracts current period data", () => {
     const result = parseIxbrl(makeIxbrl({
       financials: `

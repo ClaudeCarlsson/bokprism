@@ -166,9 +166,14 @@ export function parseIxbrl(html: string): ParsedFiling | null {
 
   const currentContexts = new Set([...currentPeriodContexts, ...currentInstantContexts]);
 
-  // Extract all financial numbers from current period
-  // Collect all entries, then deduplicate preferring exact values (scale=0) over rounded
-  const metricEntries = new Map<string, { value: number; unit: string; absScale: number }>();
+  // Extract all financial numbers from the current period.
+  // A single metric can appear multiple times (in the flerårsöversikt, the
+  // main statement, and the förändring av eget kapital section), sometimes
+  // with inconsistent scale attributes due to filer errors. We collect every
+  // occurrence and then pick the value with the highest vote count. Ties
+  // broken by lowest abs(scale), which prefers exact values over rounded.
+  interface Candidate { value: number; unit: string; absScale: number }
+  const metricCandidates = new Map<string, Candidate[]>();
 
   $("ix\\:nonFraction, nonfraction").each((_, el) => {
     const $el = $(el);
@@ -193,17 +198,72 @@ export function parseIxbrl(html: string): ParsedFiling | null {
     if (!isSane(metric, value, unit)) return;
 
     const absScale = Math.abs(parseInt(scale || "0", 10));
-    const existing = metricEntries.get(metric);
-
-    // Prefer more precise (lower absolute scale) version
-    if (!existing || absScale < existing.absScale) {
-      metricEntries.set(metric, { value, unit, absScale });
-    }
+    const arr = metricCandidates.get(metric) || [];
+    arr.push({ value, unit, absScale });
+    metricCandidates.set(metric, arr);
   });
 
+  // Pick the best candidate for each metric by majority vote with
+  // relative tolerance clustering (values within 1% agree).
+  function pickBest(candidates: Candidate[]): Candidate {
+    if (candidates.length === 1) return candidates[0];
+
+    type Group = {
+      values: number[];
+      count: number;
+      minAbsScale: number;
+      unit: string;
+      // "Representative" value for the group — use the largest-scale one for
+      // better precision when candidates differ slightly (e.g. 4,333,792,000
+      // vs 4,333,792,405 from scale=3 rounding).
+      representative: number;
+    };
+    const groups: Group[] = [];
+    const sameCluster = (a: number, b: number) => {
+      if (a === b) return true;
+      if (a === 0 || b === 0) return false;
+      return Math.abs(a - b) / Math.max(Math.abs(a), Math.abs(b)) < 0.01;
+    };
+
+    for (const c of candidates) {
+      const existing = groups.find(g => sameCluster(g.representative, c.value));
+      if (existing) {
+        existing.values.push(c.value);
+        existing.count++;
+        existing.minAbsScale = Math.min(existing.minAbsScale, c.absScale);
+        // Update representative to the larger-magnitude value (more precision)
+        if (Math.abs(c.value) > Math.abs(existing.representative)) {
+          existing.representative = c.value;
+        }
+      } else {
+        groups.push({
+          values: [c.value],
+          count: 1,
+          minAbsScale: c.absScale,
+          unit: c.unit,
+          representative: c.value,
+        });
+      }
+    }
+
+    // Sort: most occurrences first, then lowest absScale
+    groups.sort((a, b) => {
+      if (a.count !== b.count) return b.count - a.count;
+      return a.minAbsScale - b.minAbsScale;
+    });
+
+    const winner = groups[0];
+    return {
+      value: winner.representative,
+      unit: winner.unit,
+      absScale: winner.minAbsScale,
+    };
+  }
+
   const financials: FinancialEntry[] = [];
-  for (const [metric, entry] of metricEntries) {
-    financials.push({ metric, value: entry.value, unit: entry.unit });
+  for (const [metric, candidates] of metricCandidates) {
+    const best = pickBest(candidates);
+    financials.push({ metric, value: best.value, unit: best.unit });
   }
 
   // Extract people (board members, CEO, auditor)
