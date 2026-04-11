@@ -8,11 +8,13 @@ Explore financial data for all Swedish companies. Built on open data from [Bolag
 |---|---|
 | Companies | 537,349 |
 | Annual reports | 1,762,986 |
-| Financial data points | 87,689,170 |
+| Financial data points | 87,673,297 |
 | Board members & auditors | 509,974 |
 | Years covered | 2017–2026 |
 
 All data is parsed from iXBRL (inline XBRL) annual reports using the Swedish GAAP taxonomy.
+
+The parser enforces sanity bounds to reject clearly impossible values (filer errors — e.g., dates typed in employee fields, percentages missing scale attributes). Post-processing removes employee counts that fail a revenue-per-employee cross-check. Top rankings verified against known Swedish corporations.
 
 ## Features
 
