@@ -17,24 +17,23 @@ export default function HomePage() {
   return (
     <div className="mx-auto max-w-7xl px-4">
       {/* Hero Section */}
-      <section className="flex flex-col items-center py-16 text-center sm:py-24">
-        <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-5xl">
+      <section className="flex flex-col items-center py-10 text-center sm:py-24">
+        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-5xl">
           Svensk Finansdata
         </h1>
-        <p className="mt-4 max-w-xl text-lg text-zinc-600 dark:text-zinc-400">
-          {`Utforska bokslut, styrelser och kopplingar för ${stats.total_companies.toLocaleString("sv-SE")} svenska företag.`}
-          Gratis, snabbt och utan reklam.
+        <p className="mt-4 max-w-xl text-base text-zinc-600 sm:text-lg dark:text-zinc-400">
+          {`Utforska bokslut, styrelser och kopplingar för ${stats.total_companies.toLocaleString("sv-SE")} svenska företag. Gratis, snabbt och utan reklam.`}
         </p>
-        <div className="mt-8 w-full max-w-2xl">
-          <SearchBar autoFocus />
+        <div className="mt-6 w-full max-w-2xl sm:mt-8">
+          <SearchBar />
         </div>
-        <div className="mt-12">
+        <div className="mt-8 w-full sm:mt-12">
           <StatsBar stats={stats} />
         </div>
       </section>
 
       {/* Rankings Preview */}
-      <section className="grid gap-8 pb-16 md:grid-cols-3">
+      <section className="grid gap-4 pb-10 sm:gap-8 sm:pb-16 md:grid-cols-3">
         <RankingPreview title="St&ouml;rst oms&auml;ttning" metric="Omsattning" entries={topRevenue} />
         <RankingPreview title="H&ouml;gst vinst" metric="Resultat" entries={topProfit} />
         <RankingPreview title="Flest anst&auml;llda" metric="Anstallda" entries={topEmployees} />
@@ -53,7 +52,7 @@ function RankingPreview({
   entries: { org_number: string; name: string; value: number; period_end: string }[];
 }) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-700 dark:bg-zinc-900">
+    <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-700 dark:bg-zinc-900">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">{title}</h2>
         <Link

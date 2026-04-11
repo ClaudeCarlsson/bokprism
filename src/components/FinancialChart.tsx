@@ -55,7 +55,7 @@ export function FinancialChart({ history, metrics, title }: FinancialChartProps)
       {title && (
         <h3 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-100">{title}</h3>
       )}
-      <div className="h-80 w-full">
+      <div className="h-64 w-full sm:h-80">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 10 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-700" />

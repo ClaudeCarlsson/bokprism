@@ -42,18 +42,20 @@ export function FinancialTable({ history, category, title }: FinancialTableProps
 
   return (
     <div>
-      <h3 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-100">{title}</h3>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+      <h3 className="mb-3 text-base font-semibold text-zinc-900 sm:text-lg dark:text-zinc-100">
+        {title}
+      </h3>
+      <div className="-mx-4 overflow-x-auto sm:mx-0">
+        <table className="w-full min-w-[500px] text-xs sm:text-sm">
           <thead>
             <tr className="border-b border-zinc-200 dark:border-zinc-700">
-              <th className="pb-2 pr-4 text-left font-medium text-zinc-500 dark:text-zinc-400">
+              <th className="pb-2 pl-4 pr-2 text-left font-medium text-zinc-500 sm:pl-0 sm:pr-4 dark:text-zinc-400">
                 Post
               </th>
               {periods.map(h => (
                 <th
                   key={h.period_end}
-                  className="pb-2 pl-4 text-right font-medium text-zinc-500 dark:text-zinc-400"
+                  className="pb-2 pl-2 pr-4 text-right font-medium text-zinc-500 last:pr-4 sm:pl-4 sm:pr-0 sm:last:pr-0 dark:text-zinc-400"
                 >
                   {formatPeriod(h.period_end)}
                 </th>
@@ -67,14 +69,12 @@ export function FinancialTable({ history, category, title }: FinancialTableProps
                 <tr
                   key={metric}
                   className={`border-b border-zinc-100 dark:border-zinc-800 ${
-                    meta?.isSubtotal
-                      ? "font-semibold"
-                      : ""
+                    meta?.isSubtotal ? "font-semibold" : ""
                   }`}
                 >
                   <td
-                    className={`py-2 pr-4 text-zinc-900 dark:text-zinc-100 ${
-                      !meta?.isSubtotal ? "pl-4" : ""
+                    className={`py-2 pr-2 text-zinc-900 sm:pr-4 dark:text-zinc-100 ${
+                      meta?.isSubtotal ? "pl-4 sm:pl-0" : "pl-6 sm:pl-4"
                     }`}
                   >
                     {meta?.sv || metric}
@@ -84,7 +84,7 @@ export function FinancialTable({ history, category, title }: FinancialTableProps
                     return (
                       <td
                         key={h.period_end}
-                        className={`py-2 pl-4 text-right tabular-nums text-zinc-900 dark:text-zinc-100 ${
+                        className={`py-2 pl-2 pr-4 text-right tabular-nums text-zinc-900 last:pr-4 sm:pl-4 sm:pr-0 sm:last:pr-0 dark:text-zinc-100 ${
                           val != null && val < 0 ? "text-red-600 dark:text-red-400" : ""
                         }`}
                       >

@@ -40,13 +40,13 @@ export default async function CompanyPage({ params }: Props) {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:py-8">
       {/* Header */}
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+      <header className="mb-6 sm:mb-8">
+        <h1 className="text-2xl font-bold text-zinc-900 sm:text-3xl dark:text-zinc-100">
           {detail.company.name}
         </h1>
-        <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-zinc-500">
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-500">
           <span>{formatOrgNumber(detail.company.org_number)}</span>
           {latestFiling && (
             <>
@@ -58,7 +58,7 @@ export default async function CompanyPage({ params }: Props) {
           <span>{detail.filings.length} bokslut</span>
         </div>
         {detail.texts.verksamhet && (
-          <p className="mt-4 max-w-3xl text-zinc-600 dark:text-zinc-400">
+          <p className="mt-4 max-w-3xl text-sm text-zinc-600 sm:text-base dark:text-zinc-400">
             {detail.texts.verksamhet.slice(0, 500)}
             {detail.texts.verksamhet.length > 500 ? "..." : ""}
           </p>
@@ -66,7 +66,7 @@ export default async function CompanyPage({ params }: Props) {
       </header>
 
       {/* Key Metrics */}
-      <section className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+      <section className="mb-6 grid grid-cols-2 gap-2 sm:mb-8 sm:grid-cols-4 sm:gap-3 lg:grid-cols-8">
         {KEY_METRICS.map(metric => (
           <MetricCard
             key={metric}

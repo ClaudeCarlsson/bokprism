@@ -43,14 +43,13 @@ export default async function PersonPage({ params }: Props) {
   });
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8">
+      <header className="mb-6 sm:mb-8">
+        <h1 className="text-2xl font-bold text-zinc-900 sm:text-3xl dark:text-zinc-100">
           {data.person.first_name} {data.person.last_name}
         </h1>
-        <p className="mt-2 text-zinc-500">
-          Kopplad till {data.companies.length} f&ouml;retagsroller
-          hos {new Set(data.companies.map(c => c.org_number)).size} f&ouml;retag
+        <p className="mt-2 text-sm text-zinc-500 sm:text-base">
+          {`Kopplad till ${data.companies.length} företagsroller hos ${new Set(data.companies.map(c => c.org_number)).size} företag`}
         </p>
       </header>
 

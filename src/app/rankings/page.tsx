@@ -31,9 +31,11 @@ export default async function RankingsPage({ searchParams }: Props) {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Topplistor</h1>
-      <p className="mt-2 text-zinc-500">
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8">
+      <h1 className="text-2xl font-bold text-zinc-900 sm:text-3xl dark:text-zinc-100">
+        Topplistor
+      </h1>
+      <p className="mt-2 text-sm text-zinc-500 sm:text-base">
         Rangordnade efter senaste bokslut. Data fr&aring;n Bolagsverket.
       </p>
 
@@ -49,9 +51,9 @@ export default async function RankingsPage({ searchParams }: Props) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/50">
-              <th className="px-4 py-3 text-left font-medium text-zinc-500">#</th>
-              <th className="px-4 py-3 text-left font-medium text-zinc-500">F&ouml;retag</th>
-              <th className="px-4 py-3 text-right font-medium text-zinc-500">
+              <th className="px-2 py-3 text-left font-medium text-zinc-500 sm:px-4">#</th>
+              <th className="px-2 py-3 text-left font-medium text-zinc-500 sm:px-4">F&ouml;retag</th>
+              <th className="px-2 py-3 text-right font-medium text-zinc-500 sm:px-4">
                 {meta?.sv || metric}
               </th>
               <th className="hidden px-4 py-3 text-right font-medium text-zinc-500 sm:table-cell">
@@ -65,11 +67,11 @@ export default async function RankingsPage({ searchParams }: Props) {
                 key={entry.org_number}
                 className="border-b border-zinc-100 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
               >
-                <td className="px-4 py-3 text-zinc-400">{i + 1}</td>
-                <td className="px-4 py-3">
+                <td className="px-2 py-3 text-zinc-400 sm:px-4">{i + 1}</td>
+                <td className="min-w-0 px-2 py-3 sm:px-4">
                   <Link
                     href={`/company/${entry.org_number}`}
-                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                    className="line-clamp-2 text-blue-600 hover:text-blue-700 dark:text-blue-400"
                   >
                     {entry.name}
                   </Link>
@@ -77,7 +79,7 @@ export default async function RankingsPage({ searchParams }: Props) {
                     {formatOrgNumber(entry.org_number)}
                   </div>
                 </td>
-                <td className="px-4 py-3 text-right tabular-nums font-medium text-zinc-900 dark:text-zinc-100">
+                <td className="whitespace-nowrap px-2 py-3 text-right tabular-nums font-medium text-zinc-900 sm:px-4 dark:text-zinc-100">
                   {formatValue(entry.value)}
                 </td>
                 <td className="hidden px-4 py-3 text-right text-zinc-500 sm:table-cell">

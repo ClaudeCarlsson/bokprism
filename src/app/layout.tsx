@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
@@ -17,6 +17,12 @@ export const metadata: Metadata = {
   title: "BokPrism - Svensk Finansdata",
   description:
     "Utforska finansiell data for alla svenska foretag. Bokslut, styrelser, kopplingar och trender.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 function Navbar() {
@@ -56,7 +62,7 @@ export default function RootLayout({
       <body className="flex min-h-full flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
         <Navbar />
         <main className="flex-1">{children}</main>
-        <footer className="border-t border-zinc-200 py-8 text-center text-sm text-zinc-500 dark:border-zinc-800">
+        <footer className="border-t border-zinc-200 px-4 py-8 text-center text-xs text-zinc-500 sm:text-sm dark:border-zinc-800">
           <p>
             Data from{" "}
             <a

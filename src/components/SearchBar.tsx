@@ -106,9 +106,9 @@ export function SearchBar({ autoFocus = false }: { autoFocus?: boolean }) {
           }}
           onFocus={() => setShowResults(true)}
           onKeyDown={handleKeyDown}
-          placeholder="Sök företag (namn eller organisationsnummer)..."
+          placeholder="Sök företag eller org.nr..."
           autoFocus={autoFocus}
-          className="w-full rounded-xl border border-zinc-200 bg-white py-4 pl-12 pr-4 text-lg shadow-sm transition-shadow focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+          className="w-full rounded-xl border border-zinc-200 bg-white py-3.5 pl-11 pr-4 text-base shadow-sm transition-shadow focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 sm:py-4 sm:pl-12 sm:text-lg dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
           aria-label="Sök företag"
           aria-expanded={showResults && results.length > 0}
           aria-controls="search-results"
