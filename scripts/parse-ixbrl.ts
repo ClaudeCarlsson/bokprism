@@ -80,6 +80,16 @@ function parseNumber(
 // (e.g., some filings have dates typed in employee fields, or percentages
 // with missing scale attributes, etc.)
 function isSane(metric: string, value: number, unit: string): boolean {
+  // Metric-level overrides (catch cases where the filer used the wrong unit)
+  if (metric === "Soliditet") {
+    // Equity ratio is a decimal 0..1 in the happy case; allow -10..10 for
+    // negative equity and unusual structures, but reject raw SEK amounts.
+    return value >= -10 && value <= 10;
+  }
+  if (metric === "MedelantaletAnstallda") {
+    return value >= 0 && value <= 200_000;
+  }
+
   // Percent values should be in a reasonable ratio range
   if (unit === "percent") {
     return value >= -10 && value <= 10; // -1000% to 1000%
@@ -87,7 +97,6 @@ function isSane(metric: string, value: number, unit: string): boolean {
   // Employee counts
   if (unit === "count") {
     if (metric.includes("Anstallda") || metric.includes("anstallda")) {
-      // Sweden's largest employer has ~100K. Cap at 200K to allow some slack.
       return value >= 0 && value <= 200_000;
     }
     return Math.abs(value) <= 1e9;
