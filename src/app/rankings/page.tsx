@@ -68,10 +68,10 @@ export default async function RankingsPage({ searchParams }: Props) {
                 className="border-b border-zinc-100 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50"
               >
                 <td className="px-2 py-3 text-zinc-400 sm:px-4">{i + 1}</td>
-                <td className="min-w-0 px-2 py-3 sm:px-4">
+                <td className="min-w-0 max-w-0 px-2 py-3 sm:px-4">
                   <Link
                     href={`/company/${entry.org_number}`}
-                    className="line-clamp-2 text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                    className="line-clamp-2 break-words text-blue-600 hover:text-blue-700 dark:text-blue-400"
                   >
                     {entry.name}
                   </Link>

@@ -59,7 +59,7 @@ export default function RootLayout({
       lang="sv"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+      <body className="flex min-h-full flex-col overflow-x-hidden bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
         <Navbar />
         <main className="flex-1">{children}</main>
         <footer className="border-t border-zinc-200 px-4 py-8 text-center text-xs text-zinc-500 sm:text-sm dark:border-zinc-800">

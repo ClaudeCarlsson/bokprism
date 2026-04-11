@@ -14,7 +14,7 @@ export function Tabs({ tabs, defaultTab }: { tabs: Tab[]; defaultTab?: string })
   return (
     <div>
       <div
-        className="-mx-4 flex gap-1 overflow-x-auto border-b border-zinc-200 px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0 dark:border-zinc-700"
+        className="flex gap-1 overflow-x-auto border-b border-zinc-200 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden dark:border-zinc-700"
         role="tablist"
       >
         {tabs.map(tab => (
