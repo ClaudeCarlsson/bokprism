@@ -98,34 +98,49 @@ function processOuterZip(db: Database.Database, zipPath: string, fileKey: string
         const allXhtml = innerZip.getEntries().filter(e => e.entryName.endsWith(".xhtml"));
         if (allXhtml.length === 0) continue;
 
+        // Try all xhtml files, pick the one with the most data
         let filing: ParsedFiling | null = null;
         for (const entry of allXhtml) {
           const html = entry.getData().toString("utf-8");
           const parsed = parseIxbrl(html);
-          if (parsed && (!filing || parsed.financials.length > filing.financials.length)) {
-            filing = parsed;
+          if (parsed) {
+            const totalMetrics = parsed.periods.reduce((s, p) => s + p.financials.length, 0);
+            const prevTotal = filing ? filing.periods.reduce((s, p) => s + p.financials.length, 0) : 0;
+            if (totalMetrics > prevTotal) filing = parsed;
           }
         }
         if (!filing) { errors++; continue; }
 
         stmts.upsertCompany.run(filing.orgNumber, filing.companyName);
-        const { id: filingId } = stmts.upsertFiling.get(
-          filing.orgNumber, filing.periodStart, filing.periodEnd, filing.currency, fileKey
+
+        // Insert ALL periods from this filing (current + comparative years)
+        for (const period of filing.periods) {
+          const { id: filingId } = stmts.upsertFiling.get(
+            filing.orgNumber, period.periodStart, period.periodEnd, filing.currency, fileKey
+          ) as { id: number };
+
+          stmts.deleteFinancials.run(filingId);
+
+          for (const f of period.financials) {
+            stmts.insertFinancial.run(filingId, f.metric, f.value, f.unit);
+          }
+        }
+
+        // People and texts go on the latest period's filing
+        const latestPeriod = filing.periods[filing.periods.length - 1];
+        const latestFiling = stmts.upsertFiling.get(
+          filing.orgNumber, latestPeriod.periodStart, latestPeriod.periodEnd, filing.currency, fileKey
         ) as { id: number };
 
-        stmts.deleteFinancials.run(filingId);
-        stmts.deleteRoles.run(filingId);
-        stmts.deleteTexts.run(filingId);
+        stmts.deleteRoles.run(latestFiling.id);
+        stmts.deleteTexts.run(latestFiling.id);
 
-        for (const f of filing.financials) {
-          stmts.insertFinancial.run(filingId, f.metric, f.value, f.unit);
-        }
         for (const p of filing.people) {
           const { id: personId } = stmts.upsertPerson.get(p.firstName, p.lastName) as { id: number };
-          stmts.insertRole.run(filingId, personId, p.role);
+          stmts.insertRole.run(latestFiling.id, personId, p.role);
         }
         for (const t of filing.texts) {
-          stmts.insertText.run(filingId, t.field, t.content);
+          stmts.insertText.run(latestFiling.id, t.field, t.content);
         }
 
         companiesProcessed++;
