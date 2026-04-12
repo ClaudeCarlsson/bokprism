@@ -34,11 +34,11 @@ export function searchCompanies(query: string, limit = 20): SearchResult[] {
       SELECT c.org_number, c.name,
         (SELECT fd.value FROM financial_data fd
          JOIN filings f2 ON fd.filing_id = f2.id
-         WHERE f2.org_number = c.org_number AND fd.metric = 'Nettoomsattning'
+         WHERE f2.org_number = c.org_number AND fd.metric = 'RorelseintakterLagerforandringarMm'
          ORDER BY f2.period_end DESC LIMIT 1) as latest_revenue,
         (SELECT fd.value FROM financial_data fd
          JOIN filings f2 ON fd.filing_id = f2.id
-         WHERE f2.org_number = c.org_number AND fd.metric = 'AretsResultat'
+         WHERE f2.org_number = c.org_number AND fd.metric = 'ResultatEfterFinansiellaPoster'
          ORDER BY f2.period_end DESC LIMIT 1) as latest_profit,
         (SELECT f2.period_end FROM filings f2
          WHERE f2.org_number = c.org_number
@@ -56,11 +56,11 @@ export function searchCompanies(query: string, limit = 20): SearchResult[] {
     SELECT c.org_number, c.name,
       (SELECT fd.value FROM financial_data fd
        JOIN filings f2 ON fd.filing_id = f2.id
-       WHERE f2.org_number = c.org_number AND fd.metric = 'Nettoomsattning'
+       WHERE f2.org_number = c.org_number AND fd.metric = 'RorelseintakterLagerforandringarMm'
        ORDER BY f2.period_end DESC LIMIT 1) as latest_revenue,
       (SELECT fd.value FROM financial_data fd
        JOIN filings f2 ON fd.filing_id = f2.id
-       WHERE f2.org_number = c.org_number AND fd.metric = 'AretsResultat'
+       WHERE f2.org_number = c.org_number AND fd.metric = 'ResultatEfterFinansiellaPoster'
        ORDER BY f2.period_end DESC LIMIT 1) as latest_profit,
       (SELECT f2.period_end FROM filings f2
        WHERE f2.org_number = c.org_number

@@ -105,8 +105,8 @@ export function RevenueChart({ history }: { history: FinancialHistory[] }) {
       history={history}
       title="Omsättning & Resultat"
       metrics={[
-        { key: "Nettoomsattning", label: "Omsättning", color: "#3b82f6", type: "bar" },
-        { key: "AretsResultat", label: "Resultat", color: "#10b981", type: "line" },
+        { key: "RorelseintakterLagerforandringarMm", label: "Omsättning", color: "#3b82f6", type: "bar" },
+        { key: "ResultatEfterFinansiellaPoster", label: "Resultat", color: "#10b981", type: "line" },
       ]}
     />
   );

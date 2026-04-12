@@ -48,8 +48,8 @@ describe("METRIC_TAXONOMY", () => {
 
 describe("KEY_METRICS", () => {
   it("contains revenue and profit", () => {
-    expect(KEY_METRICS).toContain("Nettoomsattning");
-    expect(KEY_METRICS).toContain("AretsResultat");
+    expect(KEY_METRICS).toContain("RorelseintakterLagerforandringarMm");
+    expect(KEY_METRICS).toContain("ResultatEfterFinansiellaPoster");
   });
 
   it("has 8 key metrics", () => {

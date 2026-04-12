@@ -89,7 +89,7 @@ export interface MetricMeta {
 export const METRIC_TAXONOMY: Record<string, MetricMeta> = {
   // Income Statement
   Nettoomsattning: { sv: "Nettoomsättning", en: "Net Revenue", category: "income" },
-  RorelseintakterLagerforandringarMm: { sv: "Rörelseintäkter", en: "Operating Income", category: "income", isSubtotal: true },
+  RorelseintakterLagerforandringarMm: { sv: "Omsättning", en: "Revenue", category: "income", isSubtotal: true },
   HandelsvarorKostnader: { sv: "Handelsvaror", en: "Cost of Goods Sold", category: "income" },
   OvrigaExternaKostnader: { sv: "Övriga externa kostnader", en: "Other External Costs", category: "income" },
   Personalkostnader: { sv: "Personalkostnader", en: "Personnel Costs", category: "income" },
@@ -143,10 +143,12 @@ export const METRIC_TAXONOMY: Record<string, MetricMeta> = {
   MedelantaletAnstallda: { sv: "Medelantal anställda", en: "Average Employees", category: "ratio" },
 };
 
-// Key metrics to show in overview cards
+// Key metrics to show in overview cards — matches Swedish standard
+// (Allabolag/UC use RorelseintakterLagerforandringarMm as "Omsättning"
+// and ResultatEfterFinansiellaPoster as headline profit)
 export const KEY_METRICS = [
-  "Nettoomsattning",
-  "Rorelseresultat",
+  "RorelseintakterLagerforandringarMm",
+  "ResultatEfterFinansiellaPoster",
   "AretsResultat",
   "Tillgangar",
   "EgetKapital",
@@ -157,8 +159,9 @@ export const KEY_METRICS = [
 
 // Metrics for ranking
 export const RANKABLE_METRICS = [
-  { key: "Nettoomsattning", label: "Omsättning" },
-  { key: "AretsResultat", label: "Vinst" },
+  { key: "RorelseintakterLagerforandringarMm", label: "Omsättning" },
+  { key: "ResultatEfterFinansiellaPoster", label: "Resultat" },
+  { key: "AretsResultat", label: "Nettoresultat" },
   { key: "Tillgangar", label: "Tillgångar" },
   { key: "EgetKapital", label: "Eget kapital" },
   { key: "MedelantaletAnstallda", label: "Anställda" },

@@ -10,8 +10,8 @@ export const dynamic = "force-dynamic";
 
 export default function HomePage() {
   const stats = getSiteStats();
-  const topRevenue = getRankings("Nettoomsattning", "desc", 10, "2024-01-01");
-  const topProfit = getRankings("AretsResultat", "desc", 10, "2024-01-01");
+  const topRevenue = getRankings("RorelseintakterLagerforandringarMm", "desc", 10, "2024-01-01");
+  const topProfit = getRankings("ResultatEfterFinansiellaPoster", "desc", 10, "2024-01-01");
   const topEmployees = getRankings("MedelantaletAnstallda", "desc", 10, "2024-01-01");
 
   return (
