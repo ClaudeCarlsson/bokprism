@@ -1,6 +1,10 @@
-# BokPrism
+# [BokPrism](https://bokprism.se)
 
-Explore financial data for all Swedish companies. Built on open data from [Bolagsverket](https://vardefulla-datamangder.bolagsverket.se/arsredovisningar/).
+Explore financial data for all Swedish companies. Free, fast, no ads.
+
+**Live at [bokprism.se](https://bokprism.se)**
+
+Built on open data from [Bolagsverket](https://vardefulla-datamangder.bolagsverket.se/arsredovisningar/).
 
 ## What's in the database
 
@@ -12,7 +16,7 @@ Explore financial data for all Swedish companies. Built on open data from [Bolag
 | Board members & auditors | 509,974 |
 | Years covered | 2017–2026 |
 
-All data is parsed from iXBRL (inline XBRL) annual reports using the Swedish GAAP taxonomy.
+All data is parsed from iXBRL (inline XBRL) annual reports using the Swedish GAAP taxonomy. Headline metrics (Omsättning, Resultat efter finansnetto) match the Swedish standard used by Allabolag/UC.
 
 The parser enforces sanity bounds to reject clearly impossible values (filer errors — e.g., dates typed in employee fields, percentages missing scale attributes). Post-processing removes employee counts that fail a revenue-per-employee cross-check. Top rankings verified against known Swedish corporations.
 
@@ -67,7 +71,7 @@ Open [http://localhost:3000](http://localhost:3000).
 npm test
 ```
 
-101 tests covering utilities, components, and the iXBRL parser.
+107 tests covering utilities, components, and the iXBRL parser.
 
 ## Deploy
 
