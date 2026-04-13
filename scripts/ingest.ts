@@ -80,6 +80,7 @@ function processOuterZip(db: Database.Database, zipPath: string, fileKey: string
   const stmts = {
     upsertCompany: db.prepare(`INSERT INTO companies (org_number, name) VALUES (?, ?) ON CONFLICT(org_number) DO UPDATE SET name = excluded.name`),
     upsertFiling: db.prepare(`INSERT INTO filings (org_number, period_start, period_end, currency, source_file) VALUES (?, ?, ?, ?, ?) ON CONFLICT(org_number, period_end) DO UPDATE SET period_start = excluded.period_start, currency = excluded.currency, source_file = excluded.source_file RETURNING id`),
+    countFinancials: db.prepare("SELECT COUNT(*) as c FROM financial_data WHERE filing_id = ?"),
     deleteFinancials: db.prepare("DELETE FROM financial_data WHERE filing_id = ?"),
     deleteRoles: db.prepare("DELETE FROM company_roles WHERE filing_id = ?"),
     deleteTexts: db.prepare("DELETE FROM filing_texts WHERE filing_id = ?"),
@@ -113,16 +114,21 @@ function processOuterZip(db: Database.Database, zipPath: string, fileKey: string
 
         stmts.upsertCompany.run(filing.orgNumber, filing.companyName);
 
-        // Insert ALL periods from this filing (current + comparative years)
+        // Insert ALL periods from this filing (current + comparative years).
+        // Only overwrite existing data if the new data has more metrics
+        // (prevents a later filing's flerårsöversikt summary from replacing
+        // an earlier filing's complete income statement/balance sheet).
         for (const period of filing.periods) {
           const { id: filingId } = stmts.upsertFiling.get(
             filing.orgNumber, period.periodStart, period.periodEnd, filing.currency, fileKey
           ) as { id: number };
 
-          stmts.deleteFinancials.run(filingId);
-
-          for (const f of period.financials) {
-            stmts.insertFinancial.run(filingId, f.metric, f.value, f.unit);
+          const existingCount = (stmts.countFinancials.get(filingId) as { c: number }).c;
+          if (period.financials.length >= existingCount) {
+            stmts.deleteFinancials.run(filingId);
+            for (const f of period.financials) {
+              stmts.insertFinancial.run(filingId, f.metric, f.value, f.unit);
+            }
           }
         }
 
