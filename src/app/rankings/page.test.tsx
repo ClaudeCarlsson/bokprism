@@ -22,10 +22,16 @@ beforeAll(() => {
     "INSERT INTO filings (org_number, period_start, period_end) VALUES (?, ?, ?)"
   ).run("556000-0001", "2023-01-01", "2023-12-31");
   const filingId = Number(filing.lastInsertRowid);
-  db.prepare("INSERT INTO financial_data (filing_id, metric, value, unit) VALUES (?, ?, ?, ?)")
-    .run(filingId, "RorelseintakterLagerforandringarMm", 9_000_000, "SEK");
-  db.prepare("INSERT INTO financial_data (filing_id, metric, value, unit) VALUES (?, ?, ?, ?)")
-    .run(filingId, "Soliditet", 0.42, "percent");
+  const rows: Array<[string, number, string]> = [
+    ["RorelseintakterLagerforandringarMm", 9_000_000, "SEK"],
+    ["Soliditet", 0.42, "percent"],
+    ["Tillgangar", 15_000_000, "SEK"],
+    ["EgetKapital", 6_000_000, "SEK"],
+  ];
+  for (const [m, v, u] of rows) {
+    db.prepare("INSERT INTO financial_data (filing_id, metric, value, unit) VALUES (?, ?, ?, ?)")
+      .run(filingId, m, v, u);
+  }
 });
 
 afterAll(() => _setDbForTests(null));

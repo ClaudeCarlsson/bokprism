@@ -48,14 +48,21 @@ export default async function CompanyPage({ params }: Props) {
         </h1>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-500">
           <span>{formatOrgNumber(detail.company.org_number)}</span>
-          {latestFiling && (
+          {latestFiling ? (
             <>
               <span className="text-zinc-300 dark:text-zinc-600">|</span>
               <span>Senaste bokslut: {formatPeriod(latestFiling.period_end)}</span>
+              <span className="text-zinc-300 dark:text-zinc-600">|</span>
+              <span>{detail.filings.length} bokslut</span>
+            </>
+          ) : (
+            <>
+              <span className="text-zinc-300 dark:text-zinc-600">|</span>
+              <span className="text-amber-600 dark:text-amber-400">
+                Ingen fullst&auml;ndig &aring;rsredovisning
+              </span>
             </>
           )}
-          <span className="text-zinc-300 dark:text-zinc-600">|</span>
-          <span>{detail.filings.length} bokslut</span>
         </div>
         {detail.texts.verksamhet && (
           <p className="mt-4 max-w-3xl text-sm text-zinc-600 sm:text-base dark:text-zinc-400">

@@ -59,6 +59,7 @@ beforeAll(() => {
   db.prepare("INSERT INTO companies (org_number, name) VALUES (?, ?)").run("556000-0002", "K2 Bolaget AB");
   db.prepare("INSERT INTO companies (org_number, name) VALUES (?, ?)").run("556000-0003", "Nollbolaget AB");
   db.prepare("INSERT INTO companies (org_number, name) VALUES (?, ?)").run("556000-0004", "Tyst AB");
+  db.prepare("INSERT INTO companies (org_number, name) VALUES (?, ?)").run("556000-0005", "Delvis AB");
 
   // Akme: full K3 history, two filings including a bogus-date artifact
   insertFiling("556000-0001", "1899-01-02", "1899-12-30", { Nettoomsattning: 12345 }); // bogus
@@ -77,25 +78,58 @@ beforeAll(() => {
     EgetKapital: 4_500_000,
   });
 
-  // K2 Bolaget: only Nettoomsattning reported (headline subtotal missing)
+  // K2 Bolaget: Nettoomsattning only (headline subtotal missing) + balance sheet
   insertFiling("556000-0002", "2021-01-01", "2021-12-31", {
     Nettoomsattning: 1_800_000,
     ResultatEfterFinansiellaPoster: 200_000,
+    Tillgangar: 3_000_000,
+    EgetKapital: 1_500_000,
   });
   insertFiling("556000-0002", "2022-01-01", "2022-12-31", {
     Nettoomsattning: 2_000_000,
     ResultatEfterFinansiellaPoster: 250_000,
+    Tillgangar: 3_500_000,
+    EgetKapital: 1_700_000,
   });
 
-  // Nollbolaget: has the headline metric but value is 0 (truly dormant)
+  // Nollbolaget: dormant but complete (zero values across the board)
   insertFiling("556000-0003", "2023-01-01", "2023-12-31", {
     RorelseintakterLagerforandringarMm: 0,
     Nettoomsattning: 0,
     ResultatEfterFinansiellaPoster: -5000,
+    Tillgangar: 100_000,
+    EgetKapital: 50_000,
   });
 
   // Tyst AB: only one bogus-date filing (nothing valid) — should be invisible
   insertFiling("556000-0004", "0000-01-02", "0001-01-01", { Nettoomsattning: 999 });
+
+  // Delvis AB: mix of complete and incomplete filings — tests that the
+  // completeness filter drops partial years while keeping full-K3 years.
+  insertFiling("556000-0005", "2020-01-01", "2020-12-31", {
+    Nettoomsattning: 900_000,
+    ResultatEfterFinansiellaPoster: 50_000,
+    // no Tillgangar / EgetKapital — balance sheet not filed
+  });
+  insertFiling("556000-0005", "2021-01-01", "2021-12-31", {
+    Nettoomsattning: 950_000,
+    ResultatEfterFinansiellaPoster: 60_000,
+    // no balance sheet
+  });
+  insertFiling("556000-0005", "2022-01-01", "2022-12-31", {
+    RorelseintakterLagerforandringarMm: 1_000_000,
+    Nettoomsattning: 1_000_000,
+    ResultatEfterFinansiellaPoster: 100_000,
+    Tillgangar: 2_000_000,
+    EgetKapital: 1_200_000,
+  });
+  insertFiling("556000-0005", "2023-01-01", "2023-12-31", {
+    RorelseintakterLagerforandringarMm: 1_100_000,
+    Nettoomsattning: 1_100_000,
+    ResultatEfterFinansiellaPoster: 120_000,
+    Tillgangar: 2_100_000,
+    EgetKapital: 1_300_000,
+  });
 
   // People
   const anna = insertPerson("Anna", "Svensson");
@@ -115,12 +149,12 @@ afterAll(() => {
 describe("getSiteStats", () => {
   it("excludes pre-2015 artifact dates from year range", () => {
     const stats = getSiteStats();
-    expect(stats.years_covered).toBe("2021–2023");
+    expect(stats.years_covered).toBe("2020–2023");
   });
 
   it("counts everything else accurately", () => {
     const stats = getSiteStats();
-    expect(stats.total_companies).toBe(4);
+    expect(stats.total_companies).toBe(5);
     expect(stats.total_filings).toBeGreaterThan(4); // includes bogus ones
     expect(stats.total_people).toBe(2);
   });
@@ -294,5 +328,62 @@ describe("getRankings", () => {
     const akme = results.filter(r => r.org_number === "556000-0001");
     expect(akme).toHaveLength(1);
     expect(akme[0].value).toBe(6_000_000);
+  });
+});
+
+describe("period-completeness filtering", () => {
+  it("drops incomplete years from getFinancialHistory", () => {
+    // Delvis AB has 4 filings (2020, 2021, 2022, 2023) — 2020/2021 lack a
+    // balance sheet, 2022/2023 are full K3.
+    const history = getFinancialHistory("556000-0005");
+    expect(history.map(h => h.period_end)).toEqual(["2022-12-31", "2023-12-31"]);
+  });
+
+  it("drops incomplete filings from getCompanyDetail.filings", () => {
+    const detail = getCompanyDetail("556000-0005");
+    expect(detail?.filings).toHaveLength(2);
+    expect(detail?.filings.every(f => f.period_end >= "2022-01-01")).toBe(true);
+  });
+
+  it("picks the latest COMPLETE filing as the source of latestFinancials", () => {
+    const detail = getCompanyDetail("556000-0005");
+    expect(detail?.latestFinancials.RorelseintakterLagerforandringarMm).toBe(1_100_000);
+    expect(detail?.latestFinancials.Tillgangar).toBe(2_100_000);
+  });
+
+  it("returns an empty filings list when no filing is complete", () => {
+    // Tyst AB has only a pre-2015 bogus filing, already filtered. Add a
+    // valid-era but incomplete filing to prove completeness filters too.
+    db.prepare("INSERT INTO companies (org_number, name) VALUES (?, ?)").run("556000-0006", "Halv AB");
+    const r = db.prepare("INSERT INTO filings (org_number, period_start, period_end, source_file) VALUES (?, ?, ?, ?)")
+      .run("556000-0006", "2023-01-01", "2023-12-31", "t.zip");
+    const id = Number(r.lastInsertRowid);
+    // income line only, no balance sheet
+    db.prepare("INSERT INTO financial_data (filing_id, metric, value, unit) VALUES (?, ?, ?, ?)")
+      .run(id, "Nettoomsattning", 500_000, "SEK");
+
+    const detail = getCompanyDetail("556000-0006");
+    expect(detail).not.toBeNull();
+    expect(detail?.filings).toHaveLength(0);
+    expect(detail?.latestFinancials).toEqual({});
+  });
+
+  it("excludes incomplete filings from search latest_* subqueries", () => {
+    // Delvis AB's 2020/2021 filings only have Nettoomsattning but no balance,
+    // so the latest_period should pin to 2023, not 2021.
+    const results = searchCompanies("556000-0005");
+    expect(results[0].latest_period).toBe("2023-12-31");
+    expect(results[0].filing_count).toBe(2);
+  });
+
+  it("excludes companies with no complete filing from rankings", () => {
+    db.prepare("INSERT INTO companies (org_number, name) VALUES (?, ?)").run("556000-0007", "Bara Omsattning AB");
+    const r = db.prepare("INSERT INTO filings (org_number, period_start, period_end, source_file) VALUES (?, ?, ?, ?)")
+      .run("556000-0007", "2023-01-01", "2023-12-31", "t.zip");
+    db.prepare("INSERT INTO financial_data (filing_id, metric, value, unit) VALUES (?, ?, ?, ?)")
+      .run(Number(r.lastInsertRowid), "Nettoomsattning", 99_000_000, "SEK");
+    // Despite a huge revenue, this company lacks a balance sheet → excluded.
+    const results = getRankings("Nettoomsattning", "desc", 20);
+    expect(results.some(r => r.org_number === "556000-0007")).toBe(false);
   });
 });

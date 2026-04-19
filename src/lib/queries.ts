@@ -39,31 +39,66 @@ function applyMetricFallbacks(metrics: Record<string, number>): void {
   }
 }
 
+// Some filings report only a sliver of the statutory accounts (e.g. old K2
+// year-ends with just Nettoomsattning, or truncated filings missing the
+// balance sheet entirely). Showing them alongside full-K3 years misleads more
+// than it informs — charts jitter, subtotals show "–", ratios can't be
+// computed. A period qualifies for display only if it has an income-statement
+// line AND a balance-sheet line.
+const INCOME_METRICS = [
+  "RorelseintakterLagerforandringarMm",
+  "Nettoomsattning",
+  "ResultatEfterFinansiellaPoster",
+  "AretsResultat",
+  "Rorelseresultat",
+];
+const BALANCE_METRICS = ["Tillgangar", "EgetKapital"];
+
+function isPeriodComplete(metrics: Record<string, number>): boolean {
+  return (
+    INCOME_METRICS.some(k => k in metrics) &&
+    BALANCE_METRICS.some(k => k in metrics)
+  );
+}
+
+// SQL equivalent of isPeriodComplete — assumes the filing id is addressable
+// as `f2.id`. Used to filter search/rankings to displayable filings.
+const COMPLETE_FILING_SQL = `
+  EXISTS (SELECT 1 FROM financial_data WHERE filing_id = f2.id AND metric IN (
+    '${INCOME_METRICS.join("','")}'
+  ))
+  AND EXISTS (SELECT 1 FROM financial_data WHERE filing_id = f2.id AND metric IN (
+    '${BALANCE_METRICS.join("','")}'
+  ))
+`;
+
 // ── Search ────────────────────────────────────────────────────────────
 
 // Shared correlated subqueries for search result enrichment. The COALESCE on
-// latest_revenue mirrors the K2 fallback in `applyMetricFallbacks`.
+// latest_revenue mirrors the K2 fallback in `applyMetricFallbacks`. Each
+// subquery only considers filings that pass the completeness check so search
+// results match what the company detail page will actually display.
 const SEARCH_FIELDS = `
   c.org_number, c.name,
   COALESCE(
     (SELECT fd.value FROM financial_data fd JOIN filings f2 ON fd.filing_id = f2.id
      WHERE f2.org_number = c.org_number AND fd.metric = 'RorelseintakterLagerforandringarMm'
-       AND f2.period_end >= @minPeriod
+       AND f2.period_end >= @minPeriod AND ${COMPLETE_FILING_SQL}
      ORDER BY f2.period_end DESC LIMIT 1),
     (SELECT fd.value FROM financial_data fd JOIN filings f2 ON fd.filing_id = f2.id
      WHERE f2.org_number = c.org_number AND fd.metric = 'Nettoomsattning'
-       AND f2.period_end >= @minPeriod
+       AND f2.period_end >= @minPeriod AND ${COMPLETE_FILING_SQL}
      ORDER BY f2.period_end DESC LIMIT 1)
   ) as latest_revenue,
   (SELECT fd.value FROM financial_data fd JOIN filings f2 ON fd.filing_id = f2.id
    WHERE f2.org_number = c.org_number AND fd.metric = 'ResultatEfterFinansiellaPoster'
-     AND f2.period_end >= @minPeriod
+     AND f2.period_end >= @minPeriod AND ${COMPLETE_FILING_SQL}
    ORDER BY f2.period_end DESC LIMIT 1) as latest_profit,
   (SELECT f2.period_end FROM filings f2
-   WHERE f2.org_number = c.org_number AND f2.period_end >= @minPeriod
+   WHERE f2.org_number = c.org_number AND f2.period_end >= @minPeriod AND ${COMPLETE_FILING_SQL}
    ORDER BY f2.period_end DESC LIMIT 1) as latest_period,
   (SELECT COUNT(*) FROM filings f2
-   WHERE f2.org_number = c.org_number AND f2.period_end >= @minPeriod) as filing_count
+   WHERE f2.org_number = c.org_number AND f2.period_end >= @minPeriod AND ${COMPLETE_FILING_SQL}) as filing_count
 `;
 
 export function searchCompanies(query: string, limit = 20): SearchResult[] {
@@ -102,26 +137,36 @@ export function getCompanyDetail(orgNumber: string): CompanyDetail | null {
     .get(orgNumber) as { org_number: string; name: string } | undefined;
   if (!company) return null;
 
-  const filings = d.prepare(
+  const rawFilings = d.prepare(
     "SELECT id, org_number, period_start, period_end, currency, source_file FROM filings WHERE org_number = ? AND period_end >= ? ORDER BY period_end DESC"
   ).all(orgNumber, MIN_VALID_PERIOD_END) as CompanyDetail["filings"];
 
-  const latestFiling = filings[0];
-  const latestFinancials: Record<string, number> = {};
-  const texts: Record<string, string> = {};
+  const getFilingMetrics = d.prepare(
+    "SELECT metric, value FROM financial_data WHERE filing_id = ?"
+  );
 
-  if (latestFiling) {
-    const rows = d.prepare(
-      "SELECT metric, value FROM financial_data WHERE filing_id = ?"
-    ).all(latestFiling.id) as { metric: string; value: number }[];
-    for (const row of rows) {
-      latestFinancials[row.metric] = row.value;
+  const filings: CompanyDetail["filings"] = [];
+  let latestFinancials: Record<string, number> = {};
+  let latestFilingId: number | null = null;
+
+  for (const f of rawFilings) {
+    const rows = getFilingMetrics.all(f.id) as { metric: string; value: number }[];
+    const metrics: Record<string, number> = {};
+    for (const row of rows) metrics[row.metric] = row.value;
+    applyMetricFallbacks(metrics);
+    if (!isPeriodComplete(metrics)) continue;
+    filings.push(f);
+    if (latestFilingId === null) {
+      latestFilingId = f.id;
+      latestFinancials = metrics;
     }
-    applyMetricFallbacks(latestFinancials);
+  }
 
+  const texts: Record<string, string> = {};
+  if (latestFilingId !== null) {
     const textRows = d.prepare(
       "SELECT field, content FROM filing_texts WHERE filing_id = ?"
-    ).all(latestFiling.id) as { field: string; content: string }[];
+    ).all(latestFilingId) as { field: string; content: string }[];
     for (const row of textRows) {
       texts[row.field] = row.content;
     }
@@ -143,15 +188,18 @@ export function getFinancialHistory(orgNumber: string): FinancialHistory[] {
     "SELECT metric, value FROM financial_data WHERE filing_id = ?"
   );
 
-  return filings.map(f => {
+  const history: FinancialHistory[] = [];
+  for (const f of filings) {
     const rows = getMetrics.all(f.id) as { metric: string; value: number }[];
     const metrics: Record<string, number> = {};
     for (const row of rows) {
       metrics[row.metric] = row.value;
     }
     applyMetricFallbacks(metrics);
-    return { period_end: f.period_end, metrics };
-  });
+    if (!isPeriodComplete(metrics)) continue;
+    history.push({ period_end: f.period_end, metrics });
+  }
+  return history;
 }
 
 // ── Company People ────────────────────────────────────────────────────
@@ -216,6 +264,7 @@ export function getRankings(
       AND f.id = (
         SELECT f2.id FROM filings f2
         WHERE f2.org_number = f.org_number AND f2.period_end >= ?
+          AND ${COMPLETE_FILING_SQL}
         ORDER BY f2.period_end DESC LIMIT 1
       )
     ORDER BY fd.value ${order === "asc" ? "ASC" : "DESC"}

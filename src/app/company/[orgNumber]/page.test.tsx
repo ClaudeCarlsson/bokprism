@@ -25,10 +25,14 @@ beforeAll(() => {
     .run("556000-0001", "2023-01-01", "2023-12-31");
   const f1 = Number(r1.lastInsertRowid);
   const f2 = Number(r2.lastInsertRowid);
-  db.prepare("INSERT INTO financial_data (filing_id, metric, value, unit) VALUES (?, ?, ?, ?)")
-    .run(f1, "RorelseintakterLagerforandringarMm", 4_500_000, "SEK");
-  db.prepare("INSERT INTO financial_data (filing_id, metric, value, unit) VALUES (?, ?, ?, ?)")
-    .run(f2, "RorelseintakterLagerforandringarMm", 5_000_000, "SEK");
+  const seed = (filingId: number, metric: string, value: number) =>
+    db.prepare("INSERT INTO financial_data (filing_id, metric, value, unit) VALUES (?, ?, ?, ?)")
+      .run(filingId, metric, value, "SEK");
+  for (const [fid, rev, eq, ta] of [[f1, 4_500_000, 2_000_000, 8_000_000], [f2, 5_000_000, 2_200_000, 9_000_000]] as const) {
+    seed(fid, "RorelseintakterLagerforandringarMm", rev);
+    seed(fid, "Tillgangar", ta);
+    seed(fid, "EgetKapital", eq);
+  }
   db.prepare("INSERT INTO filing_texts (filing_id, field, content) VALUES (?, ?, ?)")
     .run(f2, "verksamhet", "Vi gör saker.");
   db.prepare("INSERT INTO filing_texts (filing_id, field, content) VALUES (?, ?, ?)")
@@ -70,5 +74,25 @@ describe("CompanyPage", () => {
     const element = await CompanyPage({ params: Promise.resolve({ orgNumber: "556000-0001" }) });
     const { container } = render(element);
     expect(container.textContent).toContain("Handelser");
+  });
+
+  it("shows a notice when a company has no complete filings", async () => {
+    // Insert a company whose only filing lacks a balance sheet.
+    const Database = (await import("better-sqlite3")).default;
+    const { initSchema } = await import("@/lib/db");
+    const { _setDbForTests } = await import("@/lib/queries");
+    const fresh = new Database(":memory:");
+    initSchema(fresh);
+    _setDbForTests(fresh);
+    fresh.prepare("INSERT INTO companies (org_number, name) VALUES (?, ?)").run("556999-9999", "Tomt AB");
+    const r = fresh.prepare("INSERT INTO filings (org_number, period_start, period_end) VALUES (?, ?, ?)")
+      .run("556999-9999", "2023-01-01", "2023-12-31");
+    fresh.prepare("INSERT INTO financial_data (filing_id, metric, value, unit) VALUES (?, ?, ?, ?)")
+      .run(Number(r.lastInsertRowid), "Nettoomsattning", 1000, "SEK");
+
+    const CompanyPage = (await import("./page")).default;
+    const element = await CompanyPage({ params: Promise.resolve({ orgNumber: "556999-9999" }) });
+    const { container } = render(element);
+    expect(container.textContent).toContain("Ingen fullständig årsredovisning");
   });
 });
