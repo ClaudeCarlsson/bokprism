@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getCompanyDetail, getFinancialHistory, getCompanyPeople } from "@/lib/queries";
+import { getCompanyDetail, getCompanyPeople } from "@/lib/queries";
 import { formatOrgNumber, formatPeriod } from "@/lib/format";
 import { KEY_METRICS } from "@/lib/types";
 import { MetricCard } from "@/components/MetricCard";
@@ -26,18 +26,11 @@ export default async function CompanyPage({ params }: Props) {
   const detail = getCompanyDetail(orgNumber);
   if (!detail) notFound();
 
-  const history = getFinancialHistory(orgNumber);
   const people = getCompanyPeople(orgNumber);
-
+  const { history } = detail;
   const latestFiling = detail.filings[0];
-  const previousFiling = detail.filings[1];
-
-  // Get previous period financials for trend comparison
-  let previousFinancials: Record<string, number> = {};
-  if (previousFiling && history.length >= 2) {
-    const prevHistory = history[history.length - 2];
-    if (prevHistory) previousFinancials = prevHistory.metrics;
-  }
+  const previousFinancials: Record<string, number> =
+    history.length >= 2 ? history[history.length - 2].metrics : {};
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:py-8">
@@ -59,7 +52,7 @@ export default async function CompanyPage({ params }: Props) {
             <>
               <span className="text-zinc-300 dark:text-zinc-600">|</span>
               <span className="text-amber-600 dark:text-amber-400">
-                Ingen fullst&auml;ndig &aring;rsredovisning
+                Ingen fullständig årsredovisning
               </span>
             </>
           )}

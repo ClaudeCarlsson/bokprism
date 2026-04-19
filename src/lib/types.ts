@@ -26,16 +26,17 @@ export interface CompanyRole {
   filing_period_end: string;
 }
 
+export interface FinancialHistory {
+  period_end: string;
+  metrics: Record<string, number>;
+}
+
 export interface CompanyDetail {
   company: Company;
   filings: Filing[];
   latestFinancials: Record<string, number>;
+  history: FinancialHistory[];
   texts: Record<string, string>;
-}
-
-export interface FinancialHistory {
-  period_end: string;
-  metrics: Record<string, number>;
 }
 
 export interface PersonWithCompanies {
@@ -77,6 +78,8 @@ export interface MetricMeta {
   sv: string;
   en: string;
   category: "income" | "balance_asset" | "balance_equity" | "balance_liability" | "ratio" | "other";
+  // Display unit. Defaults to SEK when omitted.
+  unit?: "SEK" | "percent" | "count";
   isSubtotal?: boolean;
 }
 
@@ -133,8 +136,8 @@ export const METRIC_TAXONOMY: Record<string, MetricMeta> = {
   EgetKapitalSkulder: { sv: "Summa eget kapital och skulder", en: "Total Equity & Liabilities", category: "balance_liability", isSubtotal: true },
 
   // Ratios
-  Soliditet: { sv: "Soliditet", en: "Equity Ratio", category: "ratio" },
-  MedelantaletAnstallda: { sv: "Medelantal anställda", en: "Average Employees", category: "ratio" },
+  Soliditet: { sv: "Soliditet", en: "Equity Ratio", category: "ratio", unit: "percent" },
+  MedelantaletAnstallda: { sv: "Medelantal anställda", en: "Average Employees", category: "ratio", unit: "count" },
 };
 
 // Key metrics to show in overview cards — matches Swedish standard

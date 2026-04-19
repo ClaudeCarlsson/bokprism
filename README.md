@@ -71,7 +71,7 @@ Open [http://localhost:3000](http://localhost:3000).
 npm test
 ```
 
-185 tests covering utilities, components, queries, pages, and the iXBRL parser.
+200 tests covering utilities, components, queries, pages, and the iXBRL parser.
 
 ## Deploy
 

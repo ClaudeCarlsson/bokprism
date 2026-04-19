@@ -45,13 +45,40 @@ describe("Tabs", () => {
     const user = userEvent.setup();
     render(<Tabs tabs={tabs} />);
 
-    // Tab One is initially active
     expect(screen.getByText("Tab One")).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("Tab Two")).toHaveAttribute("aria-selected", "false");
 
-    // Click Tab Two
     await user.click(screen.getByText("Tab Two"));
     expect(screen.getByText("Tab One")).toHaveAttribute("aria-selected", "false");
     expect(screen.getByText("Tab Two")).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("cycles tabs with ArrowRight / ArrowLeft", async () => {
+    const user = userEvent.setup();
+    render(<Tabs tabs={tabs} />);
+    const tab1 = screen.getByText("Tab One");
+    tab1.focus();
+
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByText("Tab Two")).toHaveAttribute("aria-selected", "true");
+
+    await user.keyboard("{ArrowRight}");
+    expect(screen.getByText("Tab Three")).toHaveAttribute("aria-selected", "true");
+
+    await user.keyboard("{ArrowRight}"); // wraps
+    expect(screen.getByText("Tab One")).toHaveAttribute("aria-selected", "true");
+
+    await user.keyboard("{ArrowLeft}"); // wraps backward
+    expect(screen.getByText("Tab Three")).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("jumps to first/last tab with Home / End", async () => {
+    const user = userEvent.setup();
+    render(<Tabs tabs={tabs} defaultTab="tab2" />);
+    screen.getByText("Tab Two").focus();
+    await user.keyboard("{End}");
+    expect(screen.getByText("Tab Three")).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{Home}");
+    expect(screen.getByText("Tab One")).toHaveAttribute("aria-selected", "true");
   });
 });

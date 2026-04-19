@@ -88,6 +88,7 @@ export function SearchBar({ autoFocus = false }: { autoFocus?: boolean }) {
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
+          aria-hidden="true"
         >
           <path
             strokeLinecap="round"
@@ -172,7 +173,7 @@ export function SearchBar({ autoFocus = false }: { autoFocus?: boolean }) {
 
       {showResults && query.length >= 2 && results.length === 0 && !isLoading && (
         <div className="absolute z-50 mt-2 w-full rounded-xl border border-zinc-200 bg-white p-6 text-center text-zinc-500 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
-          Inga företag hittades för &quot;{query}&quot;
+          Inga företag hittades för “{query}”
         </div>
       )}
     </div>

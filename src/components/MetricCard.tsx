@@ -1,6 +1,6 @@
 "use client";
 
-import { formatSEK, formatPercent, formatCount, trendDirection, trendPercent } from "@/lib/format";
+import { formatMetricValue, trendDirection, trendPercent } from "@/lib/format";
 import { METRIC_TAXONOMY } from "@/lib/types";
 
 interface MetricCardProps {
@@ -10,19 +10,15 @@ interface MetricCardProps {
   compact?: boolean;
 }
 
+const TREND_LABELS: Record<"up" | "down" | "flat", string> = {
+  up: "ökning",
+  down: "minskning",
+  flat: "oförändrad",
+};
+
 export function MetricCard({ metric, value, previousValue, compact = false }: MetricCardProps) {
-  const meta = METRIC_TAXONOMY[metric];
-  const label = meta?.sv || metric;
-  const unit = meta?.category === "ratio"
-    ? (metric === "Soliditet" ? "percent" : "count")
-    : "SEK";
-
-  const formatted = value != null
-    ? unit === "percent" ? formatPercent(value)
-    : unit === "count" ? formatCount(value)
-    : formatSEK(value)
-    : "–";
-
+  const label = METRIC_TAXONOMY[metric]?.sv || metric;
+  const formatted = formatMetricValue(value, metric);
   const trend = trendDirection(value, previousValue ?? null);
   const change = trendPercent(value, previousValue ?? null);
 
@@ -35,12 +31,14 @@ export function MetricCard({ metric, value, previousValue, compact = false }: Me
         {formatted}
       </div>
       {trend && change != null && (
-        <div className={`mt-0.5 flex items-center gap-1 text-xs sm:mt-1 sm:text-sm ${
-          trend === "up" ? "text-emerald-600" : trend === "down" ? "text-red-500" : "text-zinc-400"
-        }`}>
-          {trend === "up" && "↑"}
-          {trend === "down" && "↓"}
-          {trend === "flat" && "→"}
+        <div
+          className={`mt-0.5 flex items-center gap-1 text-xs sm:mt-1 sm:text-sm ${
+            trend === "up" ? "text-emerald-600" : trend === "down" ? "text-red-500" : "text-zinc-400"
+          }`}
+        >
+          <span aria-label={TREND_LABELS[trend]} role="img">
+            {trend === "up" ? "↑" : trend === "down" ? "↓" : "→"}
+          </span>
           <span>{(Math.abs(change) * 100).toFixed(1)}%</span>
         </div>
       )}

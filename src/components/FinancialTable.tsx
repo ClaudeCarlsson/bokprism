@@ -1,6 +1,6 @@
 "use client";
 
-import { formatSEK, formatPercent, formatCount, formatPeriod } from "@/lib/format";
+import { formatMetricValue, formatPeriod } from "@/lib/format";
 import { METRIC_TAXONOMY, type MetricMeta, type FinancialHistory } from "@/lib/types";
 
 interface FinancialTableProps {
@@ -30,15 +30,6 @@ export function FinancialTable({ history, category, title }: FinancialTableProps
 
   // Show most recent periods first, max 5
   const periods = [...history].reverse().slice(0, 5);
-
-  function formatValue(value: number | undefined, metric: string): string {
-    if (value === undefined) return "–";
-    const meta = METRIC_TAXONOMY[metric];
-    if (meta?.category === "ratio") {
-      return metric === "Soliditet" ? formatPercent(value) : formatCount(value);
-    }
-    return formatSEK(value);
-  }
 
   return (
     <div>
@@ -88,7 +79,7 @@ export function FinancialTable({ history, category, title }: FinancialTableProps
                           val != null && val < 0 ? "text-red-600 dark:text-red-400" : ""
                         }`}
                       >
-                        {formatValue(val, metric)}
+                        {formatMetricValue(val, metric)}
                       </td>
                     );
                   })}

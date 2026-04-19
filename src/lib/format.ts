@@ -1,3 +1,5 @@
+import { METRIC_TAXONOMY } from "./types";
+
 export function formatSEK(value: number | null | undefined): string {
   if (value == null) return "–";
   const abs = Math.abs(value);
@@ -16,6 +18,16 @@ export function formatPercent(value: number | null | undefined): string {
 export function formatCount(value: number | null | undefined): string {
   if (value == null) return "–";
   return new Intl.NumberFormat("sv-SE", { maximumFractionDigits: 0 }).format(value);
+}
+
+/** Format a metric value using the unit declared in METRIC_TAXONOMY. */
+export function formatMetricValue(value: number | null | undefined, metric: string): string {
+  if (value == null) return "–";
+  switch (METRIC_TAXONOMY[metric]?.unit) {
+    case "percent": return formatPercent(value);
+    case "count":   return formatCount(value);
+    default:        return formatSEK(value);
+  }
 }
 
 export function formatOrgNumber(orgNumber: string): string {

@@ -2,7 +2,8 @@ import { SearchBar } from "@/components/SearchBar";
 import { StatsBar } from "@/components/StatsBar";
 import { getSiteStats, getRankings } from "@/lib/queries";
 import Link from "next/link";
-import { formatSEK, formatOrgNumber } from "@/lib/format";
+import { formatMetricValue, formatOrgNumber } from "@/lib/format";
+import type { RankingEntry } from "@/lib/types";
 
 // Force dynamic rendering — otherwise the page is statically prerendered at
 // build time using the stub database baked into the Docker image.
@@ -16,7 +17,7 @@ export default function HomePage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4">
-      {/* Hero Section */}
+      {/* Hero */}
       <section className="flex flex-col items-center py-10 text-center sm:py-24">
         <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-5xl">
           Svensk Finansdata
@@ -32,11 +33,11 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Rankings Preview */}
+      {/* Rankings preview */}
       <section className="grid gap-4 pb-10 sm:gap-8 sm:pb-16 md:grid-cols-3">
-        <RankingPreview title="St&ouml;rst oms&auml;ttning" metric="Omsattning" entries={topRevenue} />
-        <RankingPreview title="H&ouml;gst vinst" metric="Resultat" entries={topProfit} />
-        <RankingPreview title="Flest anst&auml;llda" metric="Anstallda" entries={topEmployees} />
+        <RankingPreview title="Störst omsättning" metric="RorelseintakterLagerforandringarMm" entries={topRevenue} />
+        <RankingPreview title="Högst vinst" metric="ResultatEfterFinansiellaPoster" entries={topProfit} />
+        <RankingPreview title="Flest anställda" metric="MedelantaletAnstallda" entries={topEmployees} />
       </section>
     </div>
   );
@@ -49,7 +50,7 @@ function RankingPreview({
 }: {
   title: string;
   metric: string;
-  entries: { org_number: string; name: string; value: number; period_end: string }[];
+  entries: RankingEntry[];
 }) {
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-4 sm:p-6 dark:border-zinc-700 dark:bg-zinc-900">
@@ -81,9 +82,7 @@ function RankingPreview({
                 </div>
               </div>
               <div className="text-sm font-medium tabular-nums text-zinc-700 dark:text-zinc-300">
-                {metric === "Anstallda"
-                  ? Math.round(entry.value).toLocaleString("sv-SE")
-                  : formatSEK(entry.value)}
+                {formatMetricValue(entry.value, metric)}
               </div>
             </Link>
           </li>

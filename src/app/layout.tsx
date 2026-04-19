@@ -26,23 +26,25 @@ export const viewport: Viewport = {
 };
 
 function Navbar() {
+  const navLink =
+    "text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100";
   return (
     <nav className="border-b border-zinc-200 bg-white/80 backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-950/80">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2 font-bold text-zinc-900 dark:text-zinc-100">
-          <svg className="h-6 w-6 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+        <Link
+          href="/"
+          aria-label="BokPrism — hem"
+          className="flex items-center gap-2 font-bold text-zinc-900 dark:text-zinc-100"
+        >
+          <svg className="h-6 w-6 text-blue-600" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M3 3h7v7H3V3zm11 0h7v7h-7V3zM3 14h7v7H3v-7zm11 0h7v7h-7v-7z" opacity="0.3" />
             <path d="M4 4h5v5H4V4zm11 0h5v5h-5V4zM4 15h5v5H4v-5zm11 0h5v5h-5v-5z" />
           </svg>
           BokPrism
         </Link>
         <div className="flex items-center gap-6 text-sm">
-          <Link
-            href="/rankings"
-            className="text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-          >
-            Topplistor
-          </Link>
+          <Link href="/" className={navLink}>Hem</Link>
+          <Link href="/rankings" className={navLink}>Topplistor</Link>
         </div>
       </div>
     </nav>

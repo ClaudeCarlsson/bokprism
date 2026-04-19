@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { render } from "@testing-library/react";
-import { FinancialChart, RevenueChart, BalanceChart, ProfitabilityChart, _CustomTooltipForTest, _CustomLegendForTest } from "./FinancialChart";
+import { FinancialChart, RevenueChart, BalanceChart, ProfitabilityChart } from "./FinancialChart";
 import type { FinancialHistory } from "@/lib/types";
 
 // Recharts measures the container before rendering. jsdom returns 0 — stub it.
@@ -64,50 +64,5 @@ describe("RevenueChart / BalanceChart / ProfitabilityChart", () => {
     expect(() => render(<RevenueChart history={sample} />)).not.toThrow();
     expect(() => render(<BalanceChart history={sample} />)).not.toThrow();
     expect(() => render(<ProfitabilityChart history={sample} />)).not.toThrow();
-  });
-});
-
-describe("CustomTooltip", () => {
-  it("returns null when not active", () => {
-    const { container } = render(
-      <_CustomTooltipForTest active={false} payload={[{ name: "X", value: 1, color: "#000" }]} label="2023" />
-    );
-    expect(container.firstChild).toBeNull();
-  });
-
-  it("returns null when payload is empty", () => {
-    const { container } = render(<_CustomTooltipForTest active payload={[]} label="2023" />);
-    expect(container.firstChild).toBeNull();
-  });
-
-  it("renders formatted SEK values for each entry", () => {
-    const { container } = render(
-      <_CustomTooltipForTest
-        active
-        label="2023"
-        payload={[
-          { name: "Revenue", value: 1_000_000, color: "#000" },
-          { name: "Profit", value: null, color: "#f00" },
-        ]}
-      />
-    );
-    expect(container.textContent).toContain("2023");
-    expect(container.textContent).toContain("1.0 mkr");
-    expect(container.textContent).toContain("–");
-  });
-});
-
-describe("CustomLegend", () => {
-  it("returns null without payload", () => {
-    const { container } = render(<_CustomLegendForTest />);
-    expect(container.firstChild).toBeNull();
-  });
-
-  it("renders each payload entry", () => {
-    const { container } = render(
-      <_CustomLegendForTest payload={[{ value: "Omsättning", color: "#0f0" }, { value: "Resultat", color: "#f00" }]} />
-    );
-    expect(container.textContent).toContain("Omsättning");
-    expect(container.textContent).toContain("Resultat");
   });
 });

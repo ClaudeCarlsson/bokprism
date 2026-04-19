@@ -1,6 +1,6 @@
 import { getRankings } from "@/lib/queries";
 import { RANKABLE_METRICS, METRIC_TAXONOMY } from "@/lib/types";
-import { formatSEK, formatOrgNumber, formatPercent, formatCount } from "@/lib/format";
+import { formatMetricValue, formatOrgNumber } from "@/lib/format";
 import Link from "next/link";
 import { RankingSelector } from "./RankingSelector";
 import type { Metadata } from "next";
@@ -23,20 +23,13 @@ export default async function RankingsPage({ searchParams }: Props) {
   const results = getRankings(metric, order as "asc" | "desc", 100);
   const meta = METRIC_TAXONOMY[metric];
 
-  function formatValue(value: number): string {
-    if (meta?.category === "ratio") {
-      return metric === "Soliditet" ? formatPercent(value) : formatCount(value);
-    }
-    return formatSEK(value);
-  }
-
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:py-8">
       <h1 className="text-2xl font-bold text-zinc-900 sm:text-3xl dark:text-zinc-100">
         Topplistor
       </h1>
       <p className="mt-2 text-sm text-zinc-500 sm:text-base">
-        Rangordnade efter senaste bokslut. Data fr&aring;n Bolagsverket.
+        Rangordnade efter senaste bokslut. Data från Bolagsverket.
       </p>
 
       <div className="mt-6">
@@ -52,7 +45,7 @@ export default async function RankingsPage({ searchParams }: Props) {
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/50">
               <th className="px-2 py-3 text-left font-medium text-zinc-500 sm:px-4">#</th>
-              <th className="px-2 py-3 text-left font-medium text-zinc-500 sm:px-4">F&ouml;retag</th>
+              <th className="px-2 py-3 text-left font-medium text-zinc-500 sm:px-4">Företag</th>
               <th className="px-2 py-3 text-right font-medium text-zinc-500 sm:px-4">
                 {meta?.sv || metric}
               </th>
@@ -80,7 +73,7 @@ export default async function RankingsPage({ searchParams }: Props) {
                   </div>
                 </td>
                 <td className="whitespace-nowrap px-2 py-3 text-right tabular-nums font-medium text-zinc-900 sm:px-4 dark:text-zinc-100">
-                  {formatValue(entry.value)}
+                  {formatMetricValue(entry.value, metric)}
                 </td>
                 <td className="hidden px-4 py-3 text-right text-zinc-500 sm:table-cell">
                   {entry.period_end}

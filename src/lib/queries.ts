@@ -22,6 +22,7 @@ function db(): Database.Database {
 /** Test-only: inject an in-memory DB without hitting the disk file. */
 export function _setDbForTests(instance: Database.Database | null): void {
   _db = instance;
+  _statsCache = null;
 }
 
 // iXBRL ingests occasionally carry sentinel dates like 1899-12-30 or 0001-01-01
@@ -130,76 +131,69 @@ export function searchCompanies(query: string, limit = 20): SearchResult[] {
 
 // ── Company Detail ────────────────────────────────────────────────────
 
+// Batch-fetch metrics for many filings in one query. Beats N+1 for a company
+// with 10+ filings; keeps the group-by-filing logic in JS where it belongs.
+function loadFilingMetrics(
+  d: Database.Database,
+  filingIds: readonly number[]
+): Map<number, Record<string, number>> {
+  const out = new Map<number, Record<string, number>>();
+  if (filingIds.length === 0) return out;
+  for (const id of filingIds) out.set(id, {});
+  const placeholders = filingIds.map(() => "?").join(",");
+  const rows = d
+    .prepare(
+      `SELECT filing_id, metric, value FROM financial_data WHERE filing_id IN (${placeholders})`
+    )
+    .all(...filingIds) as { filing_id: number; metric: string; value: number }[];
+  for (const row of rows) out.get(row.filing_id)![row.metric] = row.value;
+  for (const metrics of out.values()) applyMetricFallbacks(metrics);
+  return out;
+}
+
 export function getCompanyDetail(orgNumber: string): CompanyDetail | null {
   const d = db();
 
-  const company = d.prepare("SELECT org_number, name FROM companies WHERE org_number = ?")
+  const company = d
+    .prepare("SELECT org_number, name FROM companies WHERE org_number = ?")
     .get(orgNumber) as { org_number: string; name: string } | undefined;
   if (!company) return null;
 
-  const rawFilings = d.prepare(
-    "SELECT id, org_number, period_start, period_end, currency, source_file FROM filings WHERE org_number = ? AND period_end >= ? ORDER BY period_end DESC"
-  ).all(orgNumber, MIN_VALID_PERIOD_END) as CompanyDetail["filings"];
+  const rawFilings = d
+    .prepare(
+      "SELECT id, org_number, period_start, period_end, currency, source_file FROM filings WHERE org_number = ? AND period_end >= ? ORDER BY period_end DESC"
+    )
+    .all(orgNumber, MIN_VALID_PERIOD_END) as CompanyDetail["filings"];
 
-  const getFilingMetrics = d.prepare(
-    "SELECT metric, value FROM financial_data WHERE filing_id = ?"
-  );
+  const metricsById = loadFilingMetrics(d, rawFilings.map(f => f.id));
 
   const filings: CompanyDetail["filings"] = [];
+  const history: FinancialHistory[] = [];
   let latestFinancials: Record<string, number> = {};
   let latestFilingId: number | null = null;
 
   for (const f of rawFilings) {
-    const rows = getFilingMetrics.all(f.id) as { metric: string; value: number }[];
-    const metrics: Record<string, number> = {};
-    for (const row of rows) metrics[row.metric] = row.value;
-    applyMetricFallbacks(metrics);
+    const metrics = metricsById.get(f.id) ?? {};
     if (!isPeriodComplete(metrics)) continue;
     filings.push(f);
+    history.push({ period_end: f.period_end, metrics });
     if (latestFilingId === null) {
       latestFilingId = f.id;
       latestFinancials = metrics;
     }
   }
+  // Charts/tables want oldest-first; filings list stays newest-first.
+  history.reverse();
 
   const texts: Record<string, string> = {};
   if (latestFilingId !== null) {
-    const textRows = d.prepare(
-      "SELECT field, content FROM filing_texts WHERE filing_id = ?"
-    ).all(latestFilingId) as { field: string; content: string }[];
-    for (const row of textRows) {
-      texts[row.field] = row.content;
-    }
+    const textRows = d
+      .prepare("SELECT field, content FROM filing_texts WHERE filing_id = ?")
+      .all(latestFilingId) as { field: string; content: string }[];
+    for (const row of textRows) texts[row.field] = row.content;
   }
 
-  return { company, filings, latestFinancials, texts };
-}
-
-// ── Financial History ─────────────────────────────────────────────────
-
-export function getFinancialHistory(orgNumber: string): FinancialHistory[] {
-  const d = db();
-
-  const filings = d.prepare(
-    "SELECT id, period_end FROM filings WHERE org_number = ? AND period_end >= ? ORDER BY period_end ASC"
-  ).all(orgNumber, MIN_VALID_PERIOD_END) as { id: number; period_end: string }[];
-
-  const getMetrics = d.prepare(
-    "SELECT metric, value FROM financial_data WHERE filing_id = ?"
-  );
-
-  const history: FinancialHistory[] = [];
-  for (const f of filings) {
-    const rows = getMetrics.all(f.id) as { metric: string; value: number }[];
-    const metrics: Record<string, number> = {};
-    for (const row of rows) {
-      metrics[row.metric] = row.value;
-    }
-    applyMetricFallbacks(metrics);
-    if (!isPeriodComplete(metrics)) continue;
-    history.push({ period_end: f.period_end, metrics });
-  }
-  return history;
+  return { company, filings, latestFinancials, history, texts };
 }
 
 // ── Company People ────────────────────────────────────────────────────
@@ -274,25 +268,44 @@ export function getRankings(
 
 // ── Site Stats ────────────────────────────────────────────────────────
 
+// COUNT(*) over 109M rows in financial_data takes seconds. The stats change
+// only when a new ingestion completes, so a per-process 1 hour cache is safe.
+// Cache is invalidated whenever the underlying DB instance changes (see
+// _setDbForTests) so tests never see stale values.
+let _statsCache: { stats: SiteStats; expires: number; db: Database.Database } | null = null;
+const STATS_TTL_MS = 60 * 60 * 1000;
+
 export function getSiteStats(): SiteStats {
   const d = db();
-  const companies = (d.prepare("SELECT COUNT(*) as c FROM companies").get() as { c: number }).c;
-  const filings = (d.prepare("SELECT COUNT(*) as c FROM filings").get() as { c: number }).c;
-  const dataPoints = (d.prepare("SELECT COUNT(*) as c FROM financial_data").get() as { c: number }).c;
-  const people = (d.prepare("SELECT COUNT(*) as c FROM people").get() as { c: number }).c;
-
-  const years = d.prepare(`
-    SELECT MIN(substr(period_end, 1, 4)) as min_year,
-           MAX(substr(period_end, 1, 4)) as max_year
-    FROM filings
-    WHERE period_end >= ?
-  `).get(MIN_VALID_PERIOD_END) as { min_year: string; max_year: string };
-
-  return {
-    total_companies: companies,
-    total_filings: filings,
-    total_data_points: dataPoints,
-    total_people: people,
-    years_covered: `${years.min_year}–${years.max_year}`,
+  const now = Date.now();
+  if (_statsCache && _statsCache.db === d && _statsCache.expires > now) {
+    return _statsCache.stats;
+  }
+  const row = d
+    .prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM companies) AS total_companies,
+        (SELECT COUNT(*) FROM filings) AS total_filings,
+        (SELECT COUNT(*) FROM financial_data) AS total_data_points,
+        (SELECT COUNT(*) FROM people) AS total_people,
+        (SELECT MIN(substr(period_end, 1, 4)) FROM filings WHERE period_end >= ?) AS min_year,
+        (SELECT MAX(substr(period_end, 1, 4)) FROM filings WHERE period_end >= ?) AS max_year
+    `)
+    .get(MIN_VALID_PERIOD_END, MIN_VALID_PERIOD_END) as {
+      total_companies: number;
+      total_filings: number;
+      total_data_points: number;
+      total_people: number;
+      min_year: string;
+      max_year: string;
+    };
+  const stats: SiteStats = {
+    total_companies: row.total_companies,
+    total_filings: row.total_filings,
+    total_data_points: row.total_data_points,
+    total_people: row.total_people,
+    years_covered: `${row.min_year}–${row.max_year}`,
   };
+  _statsCache = { stats, expires: now + STATS_TTL_MS, db: d };
+  return stats;
 }

@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { formatSEK, formatPeriod } from "@/lib/format";
 import type { FinancialHistory } from "@/lib/types";
+import { ChartTooltip, ChartLegend } from "./ChartChrome";
 
 interface MetricDef {
   key: string;
@@ -28,82 +29,6 @@ interface FinancialChartProps {
   metrics: MetricDef[];
   title?: string;
   showZeroLine?: boolean;
-}
-
-export function _CustomTooltipForTest({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: Array<{ name: string; value: number | null; color: string }>;
-  label?: string;
-}) {
-  return CustomTooltip({ active, payload, label });
-}
-
-function CustomTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: Array<{ name: string; value: number | null; color: string }>;
-  label?: string;
-}) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-white/95 px-4 py-3 shadow-xl backdrop-blur dark:border-zinc-700 dark:bg-zinc-900/95">
-      <p className="mb-1.5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-        {label}
-      </p>
-      <div className="space-y-1">
-        {payload.map((entry, i) => (
-          <div key={i} className="flex items-center justify-between gap-6 text-sm">
-            <span className="flex items-center gap-1.5">
-              <span
-                className="inline-block h-2.5 w-2.5 rounded-full"
-                style={{ backgroundColor: entry.color }}
-              />
-              <span className="text-zinc-600 dark:text-zinc-400">{entry.name}</span>
-            </span>
-            <span className="font-medium tabular-nums text-zinc-900 dark:text-zinc-100">
-              {formatSEK(entry.value)}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export function _CustomLegendForTest({
-  payload,
-}: {
-  payload?: Array<{ value: string; color: string }>;
-}) {
-  return CustomLegend({ payload });
-}
-
-function CustomLegend({
-  payload,
-}: {
-  payload?: Array<{ value: string; color: string }>;
-}) {
-  if (!payload) return null;
-  return (
-    <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-1">
-      {payload.map((entry, i) => (
-        <span key={i} className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
-          <span
-            className="inline-block h-2 w-2 rounded-full"
-            style={{ backgroundColor: entry.color }}
-          />
-          {entry.value}
-        </span>
-      ))}
-    </div>
-  );
 }
 
 export function FinancialChart({ history, metrics, title, showZeroLine }: FinancialChartProps) {
@@ -162,10 +87,10 @@ export function FinancialChart({ history, metrics, title, showZeroLine }: Financ
               <ReferenceLine y={0} stroke="currentColor" className="text-zinc-300 dark:text-zinc-600" strokeDasharray="2 2" />
             )}
             <Tooltip
-              content={<CustomTooltip />}
+              content={<ChartTooltip />}
               cursor={{ fill: "currentColor", className: "text-zinc-50 dark:text-zinc-800/50" }}
             />
-            <Legend content={<CustomLegend />} />
+            <Legend content={<ChartLegend />} />
             {metrics.map(m => {
               if (m.type === "area") {
                 return (

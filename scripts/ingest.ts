@@ -2,8 +2,8 @@ import Database from "better-sqlite3";
 import { getDb, initSchema } from "../src/lib/db";
 import { parseIxbrl, ParsedFiling } from "./parse-ixbrl";
 import AdmZip from "adm-zip";
-import { execSync, spawn } from "child_process";
-import { existsSync, mkdirSync, unlinkSync, readdirSync, statSync } from "fs";
+import { spawnSync, spawn } from "child_process";
+import { existsSync, mkdirSync, unlinkSync, rmSync, readdirSync, statSync } from "fs";
 import path from "path";
 
 const BASE_URL = "https://vardefulla-datamangder.bolagsverket.se/arsredovisningar-bulkfiler";
@@ -67,10 +67,9 @@ function processOuterZip(db: Database.Database, zipPath: string, fileKey: string
   const extractDir = path.join(TEMP_DIR, "extract");
   mkdirSync(extractDir, { recursive: true });
 
-  try {
-    execSync(`unzip -o -q "${zipPath}" -d "${extractDir}"`, { stdio: "pipe" });
-  } catch {
-    console.error(`  Failed to extract ${fileKey}`);
+  const unzip = spawnSync("unzip", ["-o", "-q", zipPath, "-d", extractDir], { stdio: "pipe" });
+  if (unzip.status !== 0) {
+    console.error(`  Failed to extract ${fileKey}:`, unzip.stderr.toString().trim());
     return 0;
   }
 
@@ -150,8 +149,9 @@ function processOuterZip(db: Database.Database, zipPath: string, fileKey: string
         }
 
         companiesProcessed++;
-      } catch {
+      } catch (err) {
         errors++;
+        console.error(`  parse error in ${innerZipName}:`, (err as Error).message);
       } finally {
         try { unlinkSync(innerZipPath); } catch {}
       }
@@ -161,7 +161,7 @@ function processOuterZip(db: Database.Database, zipPath: string, fileKey: string
   transaction();
   if (errors > 0) console.log(`  ${errors} parse errors`);
 
-  try { execSync(`rm -rf "${extractDir}"`, { stdio: "pipe" }); } catch {}
+  rmSync(extractDir, { recursive: true, force: true });
   return companiesProcessed;
 }
 
@@ -267,7 +267,7 @@ async function main() {
     console.log(`  DB size: ${sizeMB} MB`);
   }
 
-  try { execSync(`rm -rf "${TEMP_DIR}"`, { stdio: "pipe" }); } catch {}
+  rmSync(TEMP_DIR, { recursive: true, force: true });
   db.close();
 }
 

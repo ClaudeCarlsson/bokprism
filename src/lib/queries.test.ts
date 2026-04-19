@@ -4,7 +4,6 @@ import { initSchema } from "./db";
 import {
   searchCompanies,
   getCompanyDetail,
-  getFinancialHistory,
   getCompanyPeople,
   getPersonWithCompanies,
   getRankings,
@@ -232,26 +231,26 @@ describe("getCompanyDetail", () => {
   });
 });
 
-describe("getFinancialHistory", () => {
+describe("getCompanyDetail history", () => {
   it("returns history in chronological order (oldest first)", () => {
-    const history = getFinancialHistory("556000-0001");
-    expect(history.map(h => h.period_end)).toEqual(["2022-12-31", "2023-12-31"]);
+    const detail = getCompanyDetail("556000-0001");
+    expect(detail?.history.map(h => h.period_end)).toEqual(["2022-12-31", "2023-12-31"]);
   });
 
   it("applies K2 fallback to each period", () => {
-    const history = getFinancialHistory("556000-0002");
-    expect(history[0].metrics.RorelseintakterLagerforandringarMm).toBe(1_800_000);
-    expect(history[1].metrics.RorelseintakterLagerforandringarMm).toBe(2_000_000);
+    const detail = getCompanyDetail("556000-0002");
+    expect(detail?.history[0].metrics.RorelseintakterLagerforandringarMm).toBe(1_800_000);
+    expect(detail?.history[1].metrics.RorelseintakterLagerforandringarMm).toBe(2_000_000);
   });
 
   it("excludes bogus pre-2015 periods", () => {
-    const history = getFinancialHistory("556000-0001");
-    expect(history.every(h => h.period_end >= "2015-01-01")).toBe(true);
+    const detail = getCompanyDetail("556000-0001");
+    expect(detail?.history.every(h => h.period_end >= "2015-01-01")).toBe(true);
   });
 
   it("leaves explicit zero values alone (doesn't treat 0 as missing)", () => {
-    const history = getFinancialHistory("556000-0003");
-    expect(history[0].metrics.RorelseintakterLagerforandringarMm).toBe(0);
+    const detail = getCompanyDetail("556000-0003");
+    expect(detail?.history[0].metrics.RorelseintakterLagerforandringarMm).toBe(0);
   });
 });
 
@@ -332,15 +331,11 @@ describe("getRankings", () => {
 });
 
 describe("period-completeness filtering", () => {
-  it("drops incomplete years from getFinancialHistory", () => {
+  it("drops incomplete years from history + filings", () => {
     // Delvis AB has 4 filings (2020, 2021, 2022, 2023) — 2020/2021 lack a
     // balance sheet, 2022/2023 are full K3.
-    const history = getFinancialHistory("556000-0005");
-    expect(history.map(h => h.period_end)).toEqual(["2022-12-31", "2023-12-31"]);
-  });
-
-  it("drops incomplete filings from getCompanyDetail.filings", () => {
     const detail = getCompanyDetail("556000-0005");
+    expect(detail?.history.map(h => h.period_end)).toEqual(["2022-12-31", "2023-12-31"]);
     expect(detail?.filings).toHaveLength(2);
     expect(detail?.filings.every(f => f.period_end >= "2022-01-01")).toBe(true);
   });

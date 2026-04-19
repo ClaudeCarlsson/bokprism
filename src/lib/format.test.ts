@@ -3,6 +3,7 @@ import {
   formatSEK,
   formatPercent,
   formatCount,
+  formatMetricValue,
   formatOrgNumber,
   formatPeriod,
   trendDirection,
@@ -68,6 +69,29 @@ describe("formatCount", () => {
   it("handles null and undefined", () => {
     expect(formatCount(null)).toBe("–");
     expect(formatCount(undefined)).toBe("–");
+  });
+});
+
+describe("formatMetricValue", () => {
+  it("uses SEK formatting for income/balance metrics", () => {
+    expect(formatMetricValue(1_500_000, "Nettoomsattning")).toBe("1.5 mkr");
+  });
+
+  it("uses percent formatting for Soliditet", () => {
+    expect(formatMetricValue(0.42, "Soliditet")).toBe("42.0%");
+  });
+
+  it("uses count formatting for employee count", () => {
+    expect(formatMetricValue(150, "MedelantaletAnstallda")).toMatch(/150/);
+  });
+
+  it("falls back to SEK when the metric is unknown", () => {
+    expect(formatMetricValue(1_000, "UnknownMetric")).toBe("1 tkr");
+  });
+
+  it("returns a dash for null / undefined", () => {
+    expect(formatMetricValue(null, "Nettoomsattning")).toBe("–");
+    expect(formatMetricValue(undefined, "Nettoomsattning")).toBe("–");
   });
 });
 
