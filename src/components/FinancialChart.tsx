@@ -3,7 +3,6 @@
 import {
   ResponsiveContainer,
   ComposedChart,
-  AreaChart,
   Area,
   Bar,
   Line,
@@ -31,13 +30,25 @@ interface FinancialChartProps {
   showZeroLine?: boolean;
 }
 
+export function _CustomTooltipForTest({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ name: string; value: number | null; color: string }>;
+  label?: string;
+}) {
+  return CustomTooltip({ active, payload, label });
+}
+
 function CustomTooltip({
   active,
   payload,
   label,
 }: {
   active?: boolean;
-  payload?: Array<{ name: string; value: number; color: string }>;
+  payload?: Array<{ name: string; value: number | null; color: string }>;
   label?: string;
 }) {
   if (!active || !payload?.length) return null;
@@ -66,6 +77,14 @@ function CustomTooltip({
   );
 }
 
+export function _CustomLegendForTest({
+  payload,
+}: {
+  payload?: Array<{ value: string; color: string }>;
+}) {
+  return CustomLegend({ payload });
+}
+
 function CustomLegend({
   payload,
 }: {
@@ -90,17 +109,21 @@ function CustomLegend({
 export function FinancialChart({ history, metrics, title, showZeroLine }: FinancialChartProps) {
   if (history.length === 0) return null;
 
+  // Missing metrics stay null so Recharts draws a gap rather than a misleading
+  // zero bar — K2 filings often omit subtotals we render as headline metrics.
   const data = history.map(h => {
-    const point: Record<string, string | number> = { period: formatPeriod(h.period_end) };
+    const point: Record<string, string | number | null> = { period: formatPeriod(h.period_end) };
     for (const m of metrics) {
-      point[m.label] = h.metrics[m.key] ?? 0;
+      point[m.label] = h.metrics[m.key] ?? null;
     }
     return point;
   });
 
-  // Check if any values are negative (to show zero reference line)
   const hasNegative = showZeroLine || data.some(d =>
-    metrics.some(m => (d[m.label] as number) < 0)
+    metrics.some(m => {
+      const v = d[m.label];
+      return typeof v === "number" && v < 0;
+    })
   );
 
   return (

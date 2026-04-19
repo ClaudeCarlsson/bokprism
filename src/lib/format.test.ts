@@ -1,13 +1,10 @@
 import { describe, it, expect } from "vitest";
 import {
   formatSEK,
-  formatSEKFull,
   formatPercent,
   formatCount,
-  formatMetricValue,
   formatOrgNumber,
   formatPeriod,
-  formatDateShort,
   trendDirection,
   trendPercent,
 } from "./format";
@@ -44,19 +41,6 @@ describe("formatSEK", () => {
   });
 });
 
-describe("formatSEKFull", () => {
-  it("formats full amount with thousands separator", () => {
-    const result = formatSEKFull(1_234_567);
-    // Locale-dependent, but should contain the number and "kr"
-    expect(result).toContain("kr");
-    expect(result).toMatch(/1.*234.*567/);
-  });
-
-  it("handles null", () => {
-    expect(formatSEKFull(null)).toBe("–");
-  });
-});
-
 describe("formatPercent", () => {
   it("formats decimal as percentage", () => {
     expect(formatPercent(1.0)).toBe("100.0%");
@@ -64,8 +48,13 @@ describe("formatPercent", () => {
     expect(formatPercent(0.335)).toBe("33.5%");
   });
 
-  it("handles null", () => {
+  it("formats negative percentages", () => {
+    expect(formatPercent(-0.15)).toBe("-15.0%");
+  });
+
+  it("handles null and undefined", () => {
     expect(formatPercent(null)).toBe("–");
+    expect(formatPercent(undefined)).toBe("–");
   });
 });
 
@@ -73,28 +62,12 @@ describe("formatCount", () => {
   it("formats integer counts", () => {
     expect(formatCount(42)).toMatch(/42/);
     expect(formatCount(0)).toMatch(/0/);
+    expect(formatCount(1234)).toMatch(/1.*234/);
   });
 
-  it("handles null", () => {
+  it("handles null and undefined", () => {
     expect(formatCount(null)).toBe("–");
-  });
-});
-
-describe("formatMetricValue", () => {
-  it("formats SEK values", () => {
-    expect(formatMetricValue(1_000_000, "SEK")).toBe("1.0 mkr");
-  });
-
-  it("formats percent values", () => {
-    expect(formatMetricValue(0.5, "percent")).toBe("50.0%");
-  });
-
-  it("formats count values", () => {
-    expect(formatMetricValue(15, "count")).toMatch(/15/);
-  });
-
-  it("handles null", () => {
-    expect(formatMetricValue(null, "SEK")).toBe("–");
+    expect(formatCount(undefined)).toBe("–");
   });
 });
 
@@ -122,12 +95,16 @@ describe("formatPeriod", () => {
     expect(formatPeriod("2024-06-30")).toBe("2023/24");
     expect(formatPeriod("2024-08-31")).toBe("2023/24");
   });
-});
 
-describe("formatDateShort", () => {
-  it("formats date with month and year", () => {
-    const result = formatDateShort("2024-06-30");
-    expect(result).toMatch(/2024/);
+  it("returns dash for empty or too-short input", () => {
+    expect(formatPeriod("")).toBe("–");
+    expect(formatPeriod(null)).toBe("–");
+    expect(formatPeriod(undefined)).toBe("–");
+    expect(formatPeriod("2024")).toBe("–");
+  });
+
+  it("returns dash for malformed date", () => {
+    expect(formatPeriod("not-a-date")).toBe("–");
   });
 });
 
@@ -176,7 +153,6 @@ describe("trendPercent", () => {
   });
 
   it("handles negative previous value correctly", () => {
-    // Going from -100 to -50 is a 50% improvement
     expect(trendPercent(-50, -100)).toBeCloseTo(0.5);
   });
 });

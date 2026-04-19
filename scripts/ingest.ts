@@ -3,7 +3,7 @@ import { getDb, initSchema } from "../src/lib/db";
 import { parseIxbrl, ParsedFiling } from "./parse-ixbrl";
 import AdmZip from "adm-zip";
 import { execSync, spawn } from "child_process";
-import { existsSync, mkdirSync, unlinkSync, readFileSync, readdirSync, statSync } from "fs";
+import { existsSync, mkdirSync, unlinkSync, readdirSync, statSync } from "fs";
 import path from "path";
 
 const BASE_URL = "https://vardefulla-datamangder.bolagsverket.se/arsredovisningar-bulkfiler";
@@ -180,7 +180,8 @@ async function main() {
   console.log(`Found ${allFiles.length} zip files`);
 
   const processed = new Set(
-    db.prepare("SELECT file_key FROM processed_files").all().map((r: any) => r.file_key)
+    (db.prepare("SELECT file_key FROM processed_files").all() as { file_key: string }[])
+      .map(r => r.file_key)
   );
 
   const remaining = allFiles.filter(f => !processed.has(f));
@@ -246,10 +247,12 @@ async function main() {
 
   // Final stats
   const totalTime = ((Date.now() - startTime) / 1000).toFixed(0);
-  const companyCount = (db.prepare("SELECT COUNT(*) as c FROM companies").get() as any).c;
-  const filingCount = (db.prepare("SELECT COUNT(*) as c FROM filings").get() as any).c;
-  const dataCount = (db.prepare("SELECT COUNT(*) as c FROM financial_data").get() as any).c;
-  const peopleCount = (db.prepare("SELECT COUNT(*) as c FROM people").get() as any).c;
+  const count = (sql: string): number =>
+    (db.prepare(sql).get() as { c: number }).c;
+  const companyCount = count("SELECT COUNT(*) as c FROM companies");
+  const filingCount = count("SELECT COUNT(*) as c FROM filings");
+  const dataCount = count("SELECT COUNT(*) as c FROM financial_data");
+  const peopleCount = count("SELECT COUNT(*) as c FROM people");
 
   console.log(`\n${"=".repeat(60)}`);
   console.log(`Ingestion complete in ${totalTime}s`);

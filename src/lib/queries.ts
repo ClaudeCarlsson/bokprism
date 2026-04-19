@@ -19,6 +19,11 @@ function db(): Database.Database {
   return _db;
 }
 
+/** Test-only: inject an in-memory DB without hitting the disk file. */
+export function _setDbForTests(instance: Database.Database | null): void {
+  _db = instance;
+}
+
 // iXBRL ingests occasionally carry sentinel dates like 1899-12-30 or 0001-01-01
 // from opening-balance periods. Bolagsverket iXBRL filings started in 2015; any
 // period_end before that is a parse artifact, not a real fiscal year.
@@ -36,57 +41,56 @@ function applyMetricFallbacks(metrics: Record<string, number>): void {
 
 // ── Search ────────────────────────────────────────────────────────────
 
+// Shared correlated subqueries for search result enrichment. The COALESCE on
+// latest_revenue mirrors the K2 fallback in `applyMetricFallbacks`.
+const SEARCH_FIELDS = `
+  c.org_number, c.name,
+  COALESCE(
+    (SELECT fd.value FROM financial_data fd JOIN filings f2 ON fd.filing_id = f2.id
+     WHERE f2.org_number = c.org_number AND fd.metric = 'RorelseintakterLagerforandringarMm'
+       AND f2.period_end >= @minPeriod
+     ORDER BY f2.period_end DESC LIMIT 1),
+    (SELECT fd.value FROM financial_data fd JOIN filings f2 ON fd.filing_id = f2.id
+     WHERE f2.org_number = c.org_number AND fd.metric = 'Nettoomsattning'
+       AND f2.period_end >= @minPeriod
+     ORDER BY f2.period_end DESC LIMIT 1)
+  ) as latest_revenue,
+  (SELECT fd.value FROM financial_data fd JOIN filings f2 ON fd.filing_id = f2.id
+   WHERE f2.org_number = c.org_number AND fd.metric = 'ResultatEfterFinansiellaPoster'
+     AND f2.period_end >= @minPeriod
+   ORDER BY f2.period_end DESC LIMIT 1) as latest_profit,
+  (SELECT f2.period_end FROM filings f2
+   WHERE f2.org_number = c.org_number AND f2.period_end >= @minPeriod
+   ORDER BY f2.period_end DESC LIMIT 1) as latest_period,
+  (SELECT COUNT(*) FROM filings f2
+   WHERE f2.org_number = c.org_number AND f2.period_end >= @minPeriod) as filing_count
+`;
+
 export function searchCompanies(query: string, limit = 20): SearchResult[] {
   const d = db();
-
-  // Try FTS first for text queries, fall back to org number search
-  const isOrgNumber = /^\d{6}[-\s]?\d{4}$/.test(query.trim());
+  const trimmed = query.trim();
+  const isOrgNumber = /^\d{6}[-\s]?\d{4}$/.test(trimmed);
 
   if (isOrgNumber) {
-    const normalized = query.replace(/\D/g, "");
+    const normalized = trimmed.replace(/\D/g, "");
     const orgLike = `${normalized.slice(0, 6)}-${normalized.slice(6)}`;
     return d.prepare(`
-      SELECT c.org_number, c.name,
-        (SELECT fd.value FROM financial_data fd
-         JOIN filings f2 ON fd.filing_id = f2.id
-         WHERE f2.org_number = c.org_number AND fd.metric = 'RorelseintakterLagerforandringarMm'
-         ORDER BY f2.period_end DESC LIMIT 1) as latest_revenue,
-        (SELECT fd.value FROM financial_data fd
-         JOIN filings f2 ON fd.filing_id = f2.id
-         WHERE f2.org_number = c.org_number AND fd.metric = 'ResultatEfterFinansiellaPoster'
-         ORDER BY f2.period_end DESC LIMIT 1) as latest_profit,
-        (SELECT f2.period_end FROM filings f2
-         WHERE f2.org_number = c.org_number
-         ORDER BY f2.period_end DESC LIMIT 1) as latest_period,
-        (SELECT COUNT(*) FROM filings f2 WHERE f2.org_number = c.org_number) as filing_count
+      SELECT ${SEARCH_FIELDS}
       FROM companies c
-      WHERE c.org_number = ?
-      LIMIT ?
-    `).all(orgLike, limit) as SearchResult[];
+      WHERE c.org_number = @org
+      LIMIT @limit
+    `).all({ org: orgLike, limit, minPeriod: MIN_VALID_PERIOD_END }) as SearchResult[];
   }
 
-  // FTS search with prefix matching
-  const ftsQuery = query.trim().split(/\s+/).map(w => `"${w}"*`).join(" ");
+  const ftsQuery = trimmed.split(/\s+/).map(w => `"${w}"*`).join(" ");
   return d.prepare(`
-    SELECT c.org_number, c.name,
-      (SELECT fd.value FROM financial_data fd
-       JOIN filings f2 ON fd.filing_id = f2.id
-       WHERE f2.org_number = c.org_number AND fd.metric = 'RorelseintakterLagerforandringarMm'
-       ORDER BY f2.period_end DESC LIMIT 1) as latest_revenue,
-      (SELECT fd.value FROM financial_data fd
-       JOIN filings f2 ON fd.filing_id = f2.id
-       WHERE f2.org_number = c.org_number AND fd.metric = 'ResultatEfterFinansiellaPoster'
-       ORDER BY f2.period_end DESC LIMIT 1) as latest_profit,
-      (SELECT f2.period_end FROM filings f2
-       WHERE f2.org_number = c.org_number
-       ORDER BY f2.period_end DESC LIMIT 1) as latest_period,
-      (SELECT COUNT(*) FROM filings f2 WHERE f2.org_number = c.org_number) as filing_count
+    SELECT ${SEARCH_FIELDS}
     FROM companies_fts fts
     JOIN companies c ON c.org_number = fts.org_number
-    WHERE companies_fts MATCH ?
+    WHERE companies_fts MATCH @fts
     ORDER BY rank
-    LIMIT ?
-  `).all(ftsQuery, limit) as SearchResult[];
+    LIMIT @limit
+  `).all({ fts: ftsQuery, limit, minPeriod: MIN_VALID_PERIOD_END }) as SearchResult[];
 }
 
 // ── Company Detail ────────────────────────────────────────────────────
@@ -102,9 +106,10 @@ export function getCompanyDetail(orgNumber: string): CompanyDetail | null {
     "SELECT id, org_number, period_start, period_end, currency, source_file FROM filings WHERE org_number = ? AND period_end >= ? ORDER BY period_end DESC"
   ).all(orgNumber, MIN_VALID_PERIOD_END) as CompanyDetail["filings"];
 
-  // Latest financials
   const latestFiling = filings[0];
   const latestFinancials: Record<string, number> = {};
+  const texts: Record<string, string> = {};
+
   if (latestFiling) {
     const rows = d.prepare(
       "SELECT metric, value FROM financial_data WHERE filing_id = ?"
@@ -113,11 +118,7 @@ export function getCompanyDetail(orgNumber: string): CompanyDetail | null {
       latestFinancials[row.metric] = row.value;
     }
     applyMetricFallbacks(latestFinancials);
-  }
 
-  // Latest texts
-  const texts: Record<string, string> = {};
-  if (latestFiling) {
     const textRows = d.prepare(
       "SELECT field, content FROM filing_texts WHERE filing_id = ?"
     ).all(latestFiling.id) as { field: string; content: string }[];
@@ -178,15 +179,15 @@ export function getPersonWithCompanies(personId: number): PersonWithCompanies | 
   if (!person) return null;
 
   const companies = d.prepare(`
-    SELECT DISTINCT c.org_number, c.name, cr.role,
+    SELECT c.org_number, c.name, cr.role,
            MAX(f.period_end) as period_end
     FROM company_roles cr
     JOIN filings f ON cr.filing_id = f.id
     JOIN companies c ON f.org_number = c.org_number
-    WHERE cr.person_id = ?
+    WHERE cr.person_id = ? AND f.period_end >= ?
     GROUP BY c.org_number, cr.role
     ORDER BY period_end DESC, c.name
-  `).all(personId) as PersonWithCompanies["companies"];
+  `).all(personId, MIN_VALID_PERIOD_END) as PersonWithCompanies["companies"];
 
   return { person, companies };
 }
@@ -200,27 +201,26 @@ export function getRankings(
   minPeriod?: string
 ): RankingEntry[] {
   const d = db();
-  const periodFilter = minPeriod ? "AND f.period_end >= ?" : "";
-  const params: (string | number)[] = [metric];
-  if (minPeriod) params.push(minPeriod);
-  params.push(limit);
+  const effectiveMinPeriod = minPeriod && minPeriod > MIN_VALID_PERIOD_END
+    ? minPeriod
+    : MIN_VALID_PERIOD_END;
 
-  // Get the latest filing value for each company
   return d.prepare(`
     SELECT c.org_number, c.name, fd.value, f.period_end
     FROM financial_data fd
     JOIN filings f ON fd.filing_id = f.id
     JOIN companies c ON f.org_number = c.org_number
-    WHERE fd.metric = ? ${periodFilter}
+    WHERE fd.metric = ?
+      AND f.period_end >= ?
       AND fd.value != 0
       AND f.id = (
         SELECT f2.id FROM filings f2
-        WHERE f2.org_number = f.org_number
+        WHERE f2.org_number = f.org_number AND f2.period_end >= ?
         ORDER BY f2.period_end DESC LIMIT 1
       )
     ORDER BY fd.value ${order === "asc" ? "ASC" : "DESC"}
     LIMIT ?
-  `).all(...params) as RankingEntry[];
+  `).all(metric, effectiveMinPeriod, effectiveMinPeriod, limit) as RankingEntry[];
 }
 
 // ── Site Stats ────────────────────────────────────────────────────────

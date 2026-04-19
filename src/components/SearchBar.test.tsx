@@ -148,4 +148,86 @@ describe("SearchBar", () => {
     await user.keyboard("{Enter}");
     expect(mockPush).toHaveBeenCalledWith("/company/111111-1111");
   });
+
+  it("clamps ArrowDown at the last result and ArrowUp at -1", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve([
+          { org_number: "111111-1111", name: "Only AB", latest_revenue: null, latest_profit: null, latest_period: null, filing_count: 1 },
+        ]),
+    });
+
+    render(<SearchBar />);
+    await user.type(screen.getByRole("combobox"), "o");
+    await user.type(screen.getByRole("combobox"), "k");
+
+    await waitFor(() => expect(screen.getByText("Only AB")).toBeInTheDocument());
+
+    await user.keyboard("{ArrowDown}");
+    await user.keyboard("{ArrowDown}");
+    await user.keyboard("{ArrowUp}");
+    await user.keyboard("{ArrowUp}");
+    await user.keyboard("{Enter}"); // Enter with -1 index → no nav
+    expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  it("hides the dropdown on Escape", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve([
+          { org_number: "111111-1111", name: "Hideme AB", latest_revenue: null, latest_profit: null, latest_period: null, filing_count: 1 },
+        ]),
+    });
+
+    render(<SearchBar />);
+    await user.type(screen.getByRole("combobox"), "hide");
+    await waitFor(() => expect(screen.getByText("Hideme AB")).toBeInTheDocument());
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByText("Hideme AB")).not.toBeInTheDocument();
+  });
+
+  it("closes the dropdown when clicking outside the container", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve([
+          { org_number: "111111-1111", name: "Outside AB", latest_revenue: null, latest_profit: null, latest_period: null, filing_count: 1 },
+        ]),
+    });
+
+    render(
+      <div>
+        <SearchBar />
+        <button type="button">outside</button>
+      </div>
+    );
+    await user.type(screen.getByRole("combobox"), "out");
+    await waitFor(() => expect(screen.getByText("Outside AB")).toBeInTheDocument());
+
+    await user.click(screen.getByRole("button", { name: "outside" }));
+    expect(screen.queryByText("Outside AB")).not.toBeInTheDocument();
+  });
+
+  it("swallows AbortError when a request is cancelled mid-flight", async () => {
+    const user = userEvent.setup();
+    mockFetch.mockImplementation((_url: string, { signal }: { signal: AbortSignal }) =>
+      new Promise((_resolve, reject) => {
+        signal.addEventListener("abort", () =>
+          reject(Object.assign(new DOMException("aborted", "AbortError")))
+        );
+      })
+    );
+    render(<SearchBar />);
+    await user.type(screen.getByRole("combobox"), "ab");
+    // Typing a third char aborts the first request.
+    await user.type(screen.getByRole("combobox"), "c");
+    // No unhandled rejection. Assert no crash by checking the combobox is still rendered.
+    expect(screen.getByRole("combobox")).toBeInTheDocument();
+  });
 });

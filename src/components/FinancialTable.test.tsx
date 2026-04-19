@@ -84,6 +84,18 @@ describe("FinancialTable", () => {
     expect(screen.getByText("Eget kapital")).toBeInTheDocument();
     expect(screen.getByText("Kortfristiga skulder")).toBeInTheDocument();
   });
+
+  it("renders ratio metrics with the correct formatting", () => {
+    const history: FinancialHistory[] = [
+      {
+        period_end: "2023-12-31",
+        metrics: { Soliditet: 0.42, MedelantaletAnstallda: 15 },
+      },
+    ];
+    render(<FinancialTable history={history} category="ratio" title="Nyckeltal" />);
+    expect(screen.getByText("42.0%")).toBeInTheDocument();
+    expect(screen.getByText("15")).toBeInTheDocument();
+  });
 });
 
 describe("IncomeStatement", () => {

@@ -12,12 +12,6 @@ export interface Filing {
   source_file: string;
 }
 
-export interface FinancialDataPoint {
-  metric: string;
-  value: number;
-  unit: string;
-}
-
 export interface Person {
   id: number;
   first_name: string;

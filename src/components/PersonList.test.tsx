@@ -64,4 +64,26 @@ describe("PersonList", () => {
     render(<PersonList people={duped} />);
     expect(screen.getAllByText(/Anna.*S/)).toHaveLength(1);
   });
+
+  it("breaks role-order ties alphabetically by last name", () => {
+    const sameRole: CompanyRole[] = [
+      { person_id: 1, first_name: "Bertil", last_name: "Ö", role: "Styrelseledamot", filing_period_end: "2024-12-31" },
+      { person_id: 2, first_name: "Anna", last_name: "A", role: "Styrelseledamot", filing_period_end: "2024-12-31" },
+    ];
+    render(<PersonList people={sameRole} />);
+    const names = screen.getAllByRole("link").map(l => l.textContent);
+    expect(names[0]).toContain("Anna");
+    expect(names[1]).toContain("Bertil");
+  });
+
+  it("places unknown roles at the end", () => {
+    const mix: CompanyRole[] = [
+      { person_id: 1, first_name: "Oddly", last_name: "Roled", role: "Konsult", filing_period_end: "2024-12-31" },
+      { person_id: 2, first_name: "Known", last_name: "Role", role: "Styrelseledamot", filing_period_end: "2024-12-31" },
+    ];
+    render(<PersonList people={mix} />);
+    const names = screen.getAllByRole("link").map(l => l.textContent);
+    expect(names[0]).toContain("Known");
+    expect(names[1]).toContain("Oddly");
+  });
 });

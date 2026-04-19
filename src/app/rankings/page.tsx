@@ -17,7 +17,7 @@ interface Props {
 export default async function RankingsPage({ searchParams }: Props) {
   const { metric: rawMetric, order: rawOrder } = await searchParams;
   const validMetrics = new Set<string>(RANKABLE_METRICS.map(m => m.key));
-  const metric = rawMetric && validMetrics.has(rawMetric) ? rawMetric : "Nettoomsattning";
+  const metric = rawMetric && validMetrics.has(rawMetric) ? rawMetric : RANKABLE_METRICS[0].key;
   const order = rawOrder === "asc" ? "asc" : "desc";
 
   const results = getRankings(metric, order as "asc" | "desc", 100);

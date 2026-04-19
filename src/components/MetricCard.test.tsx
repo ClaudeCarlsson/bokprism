@@ -47,4 +47,9 @@ describe("MetricCard", () => {
     const card = container.firstChild as HTMLElement;
     expect(card.className).toContain("p-3");
   });
+
+  it("shows flat trend arrow for near-zero change", () => {
+    render(<MetricCard metric="Nettoomsattning" value={100_500_000} previousValue={100_000_000} />);
+    expect(screen.getByText("→")).toBeInTheDocument();
+  });
 });
