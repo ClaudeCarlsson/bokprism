@@ -19,6 +19,11 @@ function db(): Database.Database {
   return _db;
 }
 
+// iXBRL ingests occasionally carry sentinel dates like 1899-12-30 or 0001-01-01
+// from opening-balance periods. Bolagsverket iXBRL filings started in 2015; any
+// period_end before that is a parse artifact, not a real fiscal year.
+const MIN_VALID_PERIOD_END = "2015-01-01";
+
 // ── Search ────────────────────────────────────────────────────────────
 
 export function searchCompanies(query: string, limit = 20): SearchResult[] {
@@ -84,8 +89,8 @@ export function getCompanyDetail(orgNumber: string): CompanyDetail | null {
   if (!company) return null;
 
   const filings = d.prepare(
-    "SELECT id, org_number, period_start, period_end, currency, source_file FROM filings WHERE org_number = ? ORDER BY period_end DESC"
-  ).all(orgNumber) as CompanyDetail["filings"];
+    "SELECT id, org_number, period_start, period_end, currency, source_file FROM filings WHERE org_number = ? AND period_end >= ? ORDER BY period_end DESC"
+  ).all(orgNumber, MIN_VALID_PERIOD_END) as CompanyDetail["filings"];
 
   // Latest financials
   const latestFiling = filings[0];
@@ -119,8 +124,8 @@ export function getFinancialHistory(orgNumber: string): FinancialHistory[] {
   const d = db();
 
   const filings = d.prepare(
-    "SELECT id, period_end FROM filings WHERE org_number = ? ORDER BY period_end ASC"
-  ).all(orgNumber) as { id: number; period_end: string }[];
+    "SELECT id, period_end FROM filings WHERE org_number = ? AND period_end >= ? ORDER BY period_end ASC"
+  ).all(orgNumber, MIN_VALID_PERIOD_END) as { id: number; period_end: string }[];
 
   const getMetrics = d.prepare(
     "SELECT metric, value FROM financial_data WHERE filing_id = ?"
@@ -146,9 +151,9 @@ export function getCompanyPeople(orgNumber: string): CompanyRole[] {
     FROM company_roles cr
     JOIN people p ON cr.person_id = p.id
     JOIN filings f ON cr.filing_id = f.id
-    WHERE f.org_number = ?
+    WHERE f.org_number = ? AND f.period_end >= ?
     ORDER BY f.period_end DESC, p.last_name, p.first_name
-  `).all(orgNumber) as CompanyRole[];
+  `).all(orgNumber, MIN_VALID_PERIOD_END) as CompanyRole[];
 }
 
 // ── Person Detail ─────────────────────────────────────────────────────
@@ -219,7 +224,8 @@ export function getSiteStats(): SiteStats {
     SELECT MIN(substr(period_end, 1, 4)) as min_year,
            MAX(substr(period_end, 1, 4)) as max_year
     FROM filings
-  `).get() as { min_year: string; max_year: string };
+    WHERE period_end >= ?
+  `).get(MIN_VALID_PERIOD_END) as { min_year: string; max_year: string };
 
   return {
     total_companies: companies,
