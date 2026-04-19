@@ -24,6 +24,16 @@ function db(): Database.Database {
 // period_end before that is a parse artifact, not a real fiscal year.
 const MIN_VALID_PERIOD_END = "2015-01-01";
 
+// Older K2 filings report only `Nettoomsattning` and skip the
+// `RorelseintakterLagerforandringarMm` subtotal we use as headline "Omsättning".
+// Fall back so UI doesn't render 0 for years where the subtotal wasn't submitted.
+function applyMetricFallbacks(metrics: Record<string, number>): void {
+  const headline = metrics.RorelseintakterLagerforandringarMm;
+  if ((headline == null || headline === 0) && metrics.Nettoomsattning) {
+    metrics.RorelseintakterLagerforandringarMm = metrics.Nettoomsattning;
+  }
+}
+
 // ── Search ────────────────────────────────────────────────────────────
 
 export function searchCompanies(query: string, limit = 20): SearchResult[] {
@@ -102,6 +112,7 @@ export function getCompanyDetail(orgNumber: string): CompanyDetail | null {
     for (const row of rows) {
       latestFinancials[row.metric] = row.value;
     }
+    applyMetricFallbacks(latestFinancials);
   }
 
   // Latest texts
@@ -137,6 +148,7 @@ export function getFinancialHistory(orgNumber: string): FinancialHistory[] {
     for (const row of rows) {
       metrics[row.metric] = row.value;
     }
+    applyMetricFallbacks(metrics);
     return { period_end: f.period_end, metrics };
   });
 }
